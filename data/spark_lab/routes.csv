@@ -1,0 +1,13 @@
+route_id,route_name,trip_id,stop_id,delay_seconds
+70,Harbor Loop,70-001,STOP-A,30
+70,Harbor Loop,70-002,STOP-B,0
+70,Harbor Loop,70-003,STOP-C,-15
+70,Harbor Loop,70-004,STOP-D,45
+71,River Connector,71-001,STOP-A,10
+71,River Connector,71-002,STOP-E,-5
+71,River Connector,71-003,STOP-F,20
+72,Airport Express,72-001,STOP-G,0
+72,Airport Express,72-002,STOP-H,60
+72,Airport Express,72-003,STOP-I,-10
+73,University Shuttle,73-001,STOP-J,5
+73,University Shuttle,73-002,STOP-K,0
