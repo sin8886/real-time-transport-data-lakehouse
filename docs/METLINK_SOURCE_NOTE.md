@@ -7,13 +7,13 @@ This Day 4 validation evaluates Metlink / Greater Wellington as a possible secon
 - Official Static documentation: `https://www.metlink.org.nz/legal/general-transit-feed-specification`
 - Official Static download: `https://static.opendata.metlink.org.nz/v1/gtfs/full.zip`
 - Official Developer Portal: `https://opendata.metlink.org.nz/`
-- Local extracted feed: `data/gtfs/full/`
+- Local extracted feed: `data/gtfs/metlink/`
 
 No Kafka, Spark, S3, PostgreSQL, or production pipeline was created for this validation.
 
 ## 1. Static Feed Availability
 
-The official Static feed was downloaded and extracted successfully into `data/gtfs/full/`. The directory is readable and contains the following files:
+The official Static feed was downloaded and extracted successfully into `data/gtfs/metlink/`. The directory is readable and contains the following files:
 
 ```text
 agency.txt
@@ -51,7 +51,7 @@ The row counts describe this snapshot only and are not permanent feed guarantees
 
 ## 2. Static Schema Comparison with Auckland Transport
 
-The comparison used the existing AT feed in `data/gtfs/` and the Metlink feed in `data/gtfs/full/`.
+The comparison used the existing AT feed in `data/gtfs/at/` and the Metlink feed in `data/gtfs/metlink/`.
 
 | Core file            | Compatibility result           | Observed difference                                                                                        |
 | -------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------- |

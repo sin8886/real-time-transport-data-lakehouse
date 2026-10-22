@@ -2,7 +2,7 @@
 
 ## Validation Scope
 
-This validation covers the Auckland Transport GTFS Static snapshot available in `data/gtfs/` and one live request to the official Combined GTFS Realtime Feed:
+This validation covers the Auckland Transport GTFS Static snapshot available in `data/gtfs/at/` and one live request to the official Combined GTFS Realtime Feed:
 
 `https://api.at.govt.nz/realtime/legacy/`
 
