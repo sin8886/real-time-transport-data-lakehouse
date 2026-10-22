@@ -95,3 +95,88 @@ def test_download_file(
         "bronze/gtfs/sample.csv",
         str(destination),
     )
+
+def test_download_snapshot(
+    storage: S3Storage,
+    mock_s3_client: Mock,
+    tmp_path: Path,
+) -> None:
+    """Download all GTFS files from a specific historical snapshot."""
+    mock_s3_client.list_objects_v2.return_value = {
+        "Contents": [
+            {"Key": "bronze/at/static/ingest_date=2026-10-22/routes.txt"},
+            {"Key": "bronze/at/static/ingest_date=2026-10-22/stops.txt"},
+            {"Key": "bronze/at/static/ingest_date=2026-10-22/trips.txt"},
+            {"Key": "bronze/at/static/ingest_date=2026-10-22/metadata.json"},
+        ]
+    }
+
+    destination = tmp_path / "snapshot"
+
+    downloaded_files = storage.download_snapshot(
+        provider="at",
+        ingest_date="2026-10-22",
+        local_dir=destination,
+    )
+
+    assert downloaded_files == [
+        destination / "routes.txt",
+        destination / "stops.txt",
+        destination / "trips.txt",
+    ]
+
+    mock_s3_client.list_objects_v2.assert_called_once_with(
+        Bucket="test-bucket",
+        Prefix="bronze/at/static/ingest_date=2026-10-22/",
+    )
+
+    assert mock_s3_client.download_file.call_count == 3
+
+
+def test_download_snapshot_not_found(
+    storage: S3Storage,
+    mock_s3_client: Mock,
+    tmp_path: Path,
+) -> None:
+    """Raise an error when the requested snapshot does not exist."""
+    mock_s3_client.list_objects_v2.return_value = {}
+
+    with pytest.raises(FileNotFoundError, match="No GTFS snapshot found"):
+        storage.download_snapshot(
+            provider="at",
+            ingest_date="2026-10-22",
+            local_dir=tmp_path / "snapshot",
+        )
+
+    mock_s3_client.download_file.assert_not_called()
+
+
+def test_download_snapshot_rejects_invalid_provider(
+    storage: S3Storage,
+    tmp_path: Path,
+) -> None:
+    """Reject unsupported GTFS providers."""
+    with pytest.raises(ValueError, match="Unsupported provider"):
+        storage.download_snapshot(
+            provider="invalid",
+            ingest_date="2026-10-22",
+            local_dir=tmp_path,
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_date",
+    ["2026-2-22", "22-10-2026", "not-a-date"],
+)
+def test_download_snapshot_rejects_invalid_date(
+    storage: S3Storage,
+    tmp_path: Path,
+    invalid_date: str,
+) -> None:
+    """Reject invalid snapshot date formats."""
+    with pytest.raises(ValueError, match="YYYY-MM-DD"):
+        storage.download_snapshot(
+            provider="at",
+            ingest_date=invalid_date,
+            local_dir=tmp_path,
+        )

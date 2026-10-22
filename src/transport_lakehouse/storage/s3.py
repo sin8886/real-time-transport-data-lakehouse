@@ -82,3 +82,66 @@ class S3Storage:
             key,
             str(destination),
         )
+
+    def download_snapshot(
+        self,
+        provider: str,
+        ingest_date: str,
+        local_dir: str | Path,
+    ) -> list[Path]:
+        """Download all GTFS files belonging to a historical snapshot."""
+        from datetime import date
+
+        if provider not in {"at", "metlink"}:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+        try:
+            parsed_date = date.fromisoformat(ingest_date)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("ingest_date must use YYYY-MM-DD format") from exc
+
+        if parsed_date.isoformat() != ingest_date:
+            raise ValueError("ingest_date must use YYYY-MM-DD format")
+
+        prefix = (
+            f"bronze/{provider}/static/"
+            f"ingest_date={ingest_date}/"
+        )
+
+        response = self.client.list_objects_v2(
+            Bucket=self.bucket_name,
+            Prefix=prefix,
+        )
+
+        object_keys = [
+            item["Key"]
+            for item in response.get("Contents", [])
+            if item["Key"].endswith(".txt")
+        ]
+
+        if not object_keys:
+            raise FileNotFoundError(
+                f"No GTFS snapshot found: {provider}/{ingest_date}"
+            )
+
+        destination_dir = Path(local_dir)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+
+        downloaded_files = []
+
+        for object_key in sorted(object_keys):
+            filename = object_key.removeprefix(prefix)
+
+            if not filename or "/" in filename or "\\" in filename:
+                raise ValueError(f"Invalid snapshot object key: {object_key}")
+
+            destination = destination_dir / filename
+
+            self.download_file(
+                key=object_key,
+                local_path=destination,
+            )
+
+            downloaded_files.append(destination)
+
+        return downloaded_files
