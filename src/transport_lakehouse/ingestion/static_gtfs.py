@@ -1,4 +1,3 @@
-
 """Ingestion utilities for static GTFS feeds."""
 
 from __future__ import annotations
@@ -43,9 +42,7 @@ class StaticGTFSIngestion:
             try:
                 parsed_date = date.fromisoformat(ingest_date)
             except ValueError as exc:
-                raise ValueError(
-                    "ingest_date must use YYYY-MM-DD format"
-                ) from exc
+                raise ValueError("ingest_date must use YYYY-MM-DD format") from exc
 
             if parsed_date.isoformat() != ingest_date:
                 raise ValueError("ingest_date must use YYYY-MM-DD format")
@@ -61,16 +58,13 @@ class StaticGTFSIngestion:
         gtfs_files = sorted(self.source_dir.glob("*.txt"))
 
         if not gtfs_files:
-            raise FileNotFoundError(
-                f"No GTFS text files found in: {self.source_dir}"
-            )
+            raise FileNotFoundError(f"No GTFS text files found in: {self.source_dir}")
 
         uploaded_keys = []
 
         for file_path in gtfs_files:
             object_key = (
-                f"{self.provider}/static/"
-                f"ingest_date={snapshot_date}/{file_path.name}"
+                f"{self.provider}/static/ingest_date={snapshot_date}/{file_path.name}"
             )
 
             uploaded_key = self.storage.upload_file(

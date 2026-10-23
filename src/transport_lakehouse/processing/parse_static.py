@@ -2,13 +2,15 @@ from pathlib import Path
 
 from transport_lakehouse.processing.static_parser import parse_gtfs_table
 
-
+"""Parse the required GTFS Static tables from a provider directory."""
 GTFS_CORE_TABLES = (
     "agency",
     "routes",
     "stops",
     "trips",
     "stop_times",
+    "calendar",
+    "calendar_dates",
 )
 
 

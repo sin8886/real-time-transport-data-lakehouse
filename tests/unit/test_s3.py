@@ -96,6 +96,7 @@ def test_download_file(
         str(destination),
     )
 
+
 def test_download_snapshot(
     storage: S3Storage,
     mock_s3_client: Mock,

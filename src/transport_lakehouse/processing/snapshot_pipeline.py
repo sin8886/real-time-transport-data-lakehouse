@@ -1,4 +1,3 @@
-
 """Historical GTFS snapshot processing pipeline."""
 
 from __future__ import annotations
@@ -45,11 +44,7 @@ class SnapshotPipeline:
         if parsed_date.isoformat() != ingest_date:
             raise ValueError("ingest_date must use YYYY-MM-DD format")
 
-        snapshot_dir = (
-            self.work_dir
-            / provider
-            / f"ingest_date={ingest_date}"
-        )
+        snapshot_dir = self.work_dir / provider / f"ingest_date={ingest_date}"
 
         downloaded_files = self.storage.download_snapshot(
             provider=provider,

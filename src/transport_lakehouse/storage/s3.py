@@ -103,10 +103,7 @@ class S3Storage:
         if parsed_date.isoformat() != ingest_date:
             raise ValueError("ingest_date must use YYYY-MM-DD format")
 
-        prefix = (
-            f"bronze/{provider}/static/"
-            f"ingest_date={ingest_date}/"
-        )
+        prefix = f"bronze/{provider}/static/ingest_date={ingest_date}/"
 
         response = self.client.list_objects_v2(
             Bucket=self.bucket_name,
@@ -120,9 +117,7 @@ class S3Storage:
         ]
 
         if not object_keys:
-            raise FileNotFoundError(
-                f"No GTFS snapshot found: {provider}/{ingest_date}"
-            )
+            raise FileNotFoundError(f"No GTFS snapshot found: {provider}/{ingest_date}")
 
         destination_dir = Path(local_dir)
         destination_dir.mkdir(parents=True, exist_ok=True)

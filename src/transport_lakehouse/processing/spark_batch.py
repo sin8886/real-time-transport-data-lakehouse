@@ -27,8 +27,7 @@ def create_spark_session() -> Any:
         from pyspark.sql import SparkSession
     except ImportError as error:
         raise RuntimeError(
-            "PySpark is required. Install it with: "
-            "pip install 'pyspark>=3.5,<4.0'"
+            "PySpark is required. Install it with: pip install 'pyspark>=3.5,<4.0'"
         ) from error
 
     os.environ.setdefault("SPARK_LOCAL_IP", "127.0.0.1")
@@ -50,13 +49,10 @@ def load_gtfs_tables(spark: Any, gtfs_dir: str | Path) -> dict[str, Any]:
         input_path = root / f"{table_name}.txt"
 
         if not input_path.is_file():
-            raise FileNotFoundError(
-                f"Required GTFS file was not found: {input_path}"
-            )
+            raise FileNotFoundError(f"Required GTFS file was not found: {input_path}")
 
         df = (
-            spark.read
-            .option("header", True)
+            spark.read.option("header", True)
             .option("inferSchema", False)
             .option("encoding", "UTF-8")
             .csv(str(input_path))

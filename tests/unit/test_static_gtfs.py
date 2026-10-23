@@ -1,4 +1,3 @@
-
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -60,9 +59,7 @@ def test_ingest_accepts_date_object(tmp_path: Path) -> None:
 
     uploaded_keys = ingestion.ingest(date(2026, 10, 22))
 
-    assert uploaded_keys == [
-        "bronze/at/static/ingest_date=2026-10-22/routes.txt"
-    ]
+    assert uploaded_keys == ["bronze/at/static/ingest_date=2026-10-22/routes.txt"]
 
 
 def test_ingest_raises_error_when_directory_is_empty(tmp_path: Path) -> None:

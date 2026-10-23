@@ -123,12 +123,8 @@ def test_load_gtfs_tables_reads_csv_files(
     tmp_path,
 ) -> None:
     files = {
-        "routes.txt": (
-            "route_id,route_short_name,route_type\nR1,70,3\n"
-        ),
-        "trips.txt": (
-            "trip_id,route_id,service_id,direction_id\nT1,R1,WK,0\n"
-        ),
+        "routes.txt": ("route_id,route_short_name,route_type\nR1,70,3\n"),
+        "trips.txt": ("trip_id,route_id,service_id,direction_id\nT1,R1,WK,0\n"),
         "stop_times.txt": (
             "trip_id,stop_id,stop_sequence,arrival_time,departure_time\n"
             "T1,S1,1,08:00:00,08:00:00\n"

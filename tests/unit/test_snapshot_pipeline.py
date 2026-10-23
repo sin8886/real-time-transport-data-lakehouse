@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -10,32 +9,29 @@ from transport_lakehouse.processing.snapshot_pipeline import SnapshotPipeline
 def test_snapshot_pipeline_processes_historical_snapshot(
     tmp_path: Path,
 ) -> None:
-    snapshot_dir = (
-        tmp_path / "at" / "ingest_date=2026-10-22"
-    )
-
+    snapshot_dir = tmp_path / "at" / "ingest_date=2026-10-22"
     snapshot_dir.mkdir(parents=True)
 
-    for table_name in (
+    table_names = (
         "agency",
         "routes",
         "stops",
         "trips",
         "stop_times",
-    ):
-        (snapshot_dir / f"{table_name}.txt").write_text("id\n")
+        "calendar",
+        "calendar_dates",
+    )
+
+    for table_name in table_names:
+        (snapshot_dir / f"{table_name}.txt").write_text(
+            "id\n",
+            encoding="utf-8",
+        )
 
     mock_storage = MagicMock()
 
     mock_storage.download_snapshot.return_value = [
-        snapshot_dir / f"{table_name}.txt"
-        for table_name in (
-            "agency",
-            "routes",
-            "stops",
-            "trips",
-            "stop_times",
-        )
+        snapshot_dir / f"{table_name}.txt" for table_name in table_names
     ]
 
     pipeline = SnapshotPipeline(
@@ -50,7 +46,7 @@ def test_snapshot_pipeline_processes_historical_snapshot(
 
     assert result["provider"] == "at"
     assert result["ingest_date"] == "2026-10-22"
-    assert result["downloaded_files"] == 5
+    assert result["downloaded_files"] == 7
     assert result["passed"] is True
 
     assert result["quality"]["total_checks"] == 11
