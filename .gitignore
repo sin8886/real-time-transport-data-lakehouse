@@ -13,13 +13,14 @@ build/
 dist/
 *.egg-info/
 
-# Generated local data; validated source snapshots remain tracked.
+# Generated local runtime data; do not commit these files to Git.
 data/bronze/
 data/silver/
 data/gold/
 data/raw/
 data/realtime/
 data/local/
+data/snapshots/
 # Large GTFS datasets: keep source data out of Git
 data/gtfs/
 !data/gtfs/.gitkeep

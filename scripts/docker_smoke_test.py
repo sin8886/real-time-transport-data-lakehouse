@@ -69,7 +69,8 @@ def check_postgres() -> None:
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
         raise RuntimeError(detail or "pg_isready failed")
-    check_tcp("localhost", 5432)
+    postgres_port = int(load_local_value("POSTGRES_PORT", "5433"))
+    check_tcp("localhost", postgres_port)
 
 
 def run_check(name: str, check: Callable[[], None]) -> bool:

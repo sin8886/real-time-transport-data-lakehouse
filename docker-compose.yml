@@ -87,7 +87,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-transport}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-transport_local_dev}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
