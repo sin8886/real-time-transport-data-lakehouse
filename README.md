@@ -34,6 +34,18 @@ ruff check .
 ruff format --check .
 ```
 
+### Incremental Static Batch (Day 20)
+
+`IncrementalBatchPipeline` compares a deterministic SHA-256 fingerprint of the
+local GTFS `.txt` feed with the provider watermark in
+`data/state/static_gtfs_watermarks.json`. A changed feed is uploaded to the
+existing Bronze `ingest_date=YYYY-MM-DD` partition and processed through the
+existing snapshot pipeline. The watermark is written atomically only after
+processing reports success; unchanged feeds are skipped. Day 20 v1 keeps the
+existing one-snapshot-per-ingest-date behavior; multiple changes on the same
+day reuse that partition and are outside this version's history-retention
+scope.
+
 ### Windows Parquet prerequisite
 
 The Day 10 Spark lab keeps real Parquet writes and `partitionBy("route_id")`.

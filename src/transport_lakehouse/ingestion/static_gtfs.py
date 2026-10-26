@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from hashlib import sha256
 from pathlib import Path
 
 from transport_lakehouse.storage.s3 import S3Storage
@@ -76,3 +77,21 @@ class StaticGTFSIngestion:
             uploaded_keys.append(uploaded_key)
 
         return uploaded_keys
+
+    def feed_fingerprint(self) -> str:
+        """Return a deterministic SHA-256 fingerprint of the local GTFS feed."""
+        gtfs_files = sorted(self.source_dir.glob("*.txt"))
+
+        if not gtfs_files:
+            raise FileNotFoundError(f"No GTFS text files found in: {self.source_dir}")
+
+        digest = sha256()
+        for file_path in gtfs_files:
+            digest.update(file_path.name.encode("utf-8"))
+            digest.update(b"\0")
+            with file_path.open("rb") as feed_file:
+                for chunk in iter(lambda: feed_file.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            digest.update(b"\0")
+
+        return digest.hexdigest()
