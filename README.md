@@ -46,6 +46,16 @@ existing one-snapshot-per-ingest-date behavior; multiple changes on the same
 day reuse that partition and are outside this version's history-retention
 scope.
 
+### Pipeline Audit (Day 21)
+
+`IncrementalBatchPipeline` writes one independent PostgreSQL audit record per
+invocation to `pipeline_runs`. The record includes a UUID `run_id`, pipeline
+status (`success`, `skipped`, or `failed`), duration in milliseconds, parsed
+input records, Silver output records, failed quality records, and any error
+message. Audit writes use their own PostgreSQL connection and transaction so a
+failed business run can still be recorded. Audit errors are surfaced rather
+than silently ignored.
+
 ### Windows Parquet prerequisite
 
 The Day 10 Spark lab keeps real Parquet writes and `partitionBy("route_id")`.

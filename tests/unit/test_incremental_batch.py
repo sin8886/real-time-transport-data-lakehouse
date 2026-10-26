@@ -16,12 +16,14 @@ def build_pipeline(tmp_path: Path) -> tuple[IncrementalBatchPipeline, MagicMock,
     storage = MagicMock()
     snapshot_pipeline = MagicMock()
     snapshot_pipeline.run.return_value = {"passed": True}
+    audit_writer = MagicMock()
     watermark_path = tmp_path / "state" / "watermarks.json"
     pipeline = IncrementalBatchPipeline(
         source_dir=source_dir,
         storage=storage,
         snapshot_pipeline=snapshot_pipeline,
         watermark_path=watermark_path,
+        audit_writer=audit_writer,
     )
     return pipeline, snapshot_pipeline, watermark_path
 
@@ -40,6 +42,7 @@ def test_first_run_processes_and_persists_watermark(tmp_path: Path) -> None:
         ]
         == "2026-10-26"
     )
+    assert pipeline.audit_writer.call_args.kwargs["status"] == "success"
 
 
 def test_unchanged_feed_is_skipped(tmp_path: Path) -> None:
@@ -57,6 +60,11 @@ def test_unchanged_feed_is_skipped(tmp_path: Path) -> None:
         ]
         == "2026-10-26"
     )
+    audit = pipeline.audit_writer.call_args.kwargs
+    assert audit["status"] == "skipped"
+    assert audit["records_in"] == 0
+    assert audit["records_out"] == 0
+    assert audit["failed_records"] == 0
 
 
 def test_changed_feed_is_processed_again(tmp_path: Path) -> None:
@@ -73,6 +81,26 @@ def test_changed_feed_is_processed_again(tmp_path: Path) -> None:
     snapshot_pipeline.run.assert_called_once_with("at", "2026-10-27")
 
 
+def test_success_audit_uses_snapshot_record_counts(tmp_path: Path) -> None:
+    pipeline, snapshot_pipeline, _ = build_pipeline(tmp_path)
+    snapshot_pipeline.run.return_value = {
+        "passed": True,
+        "parsed_records": {"routes": 3},
+        "silver_records": {"routes": 2},
+        "quality": {
+            "tables": {"routes": {"schema": {"failed_records": 4}}},
+        },
+    }
+
+    pipeline.run("2026-10-26")
+
+    audit = pipeline.audit_writer.call_args.kwargs
+    assert audit["status"] == "success"
+    assert audit["records_in"] == 3
+    assert audit["records_out"] == 2
+    assert audit["failed_records"] == 4
+
+
 def test_processing_failure_does_not_update_watermark(tmp_path: Path) -> None:
     pipeline, snapshot_pipeline, watermark_path = build_pipeline(tmp_path)
     snapshot_pipeline.run.return_value = {"passed": False}
@@ -81,6 +109,46 @@ def test_processing_failure_does_not_update_watermark(tmp_path: Path) -> None:
         pipeline.run("2026-10-26")
 
     assert not watermark_path.exists()
+    assert pipeline.audit_writer.call_args.kwargs["status"] == "failed"
+
+
+def test_processing_exception_writes_failed_audit(tmp_path: Path) -> None:
+    pipeline, snapshot_pipeline, _ = build_pipeline(tmp_path)
+    snapshot_pipeline.run.side_effect = RuntimeError("processing error")
+
+    with pytest.raises(RuntimeError, match="processing error"):
+        pipeline.run("2026-10-26")
+
+    audit = pipeline.audit_writer.call_args.kwargs
+    assert audit["status"] == "failed"
+    assert audit["error_message"] == "processing error"
+
+
+def test_audit_failure_is_reported_without_hiding_business_error(
+    tmp_path: Path,
+) -> None:
+    pipeline, snapshot_pipeline, _ = build_pipeline(tmp_path)
+    snapshot_pipeline.run.side_effect = RuntimeError("processing error")
+    pipeline.audit_writer.side_effect = RuntimeError("audit unavailable")
+
+    with pytest.raises(RuntimeError, match="audit recording failed") as raised:
+        pipeline.run("2026-10-26")
+
+    assert isinstance(raised.value.__cause__, RuntimeError)
+    assert str(raised.value.__cause__) == "processing error"
+    assert str(raised.value.business_error) == "processing error"
+    assert str(raised.value.audit_error) == "audit unavailable"
+
+
+def test_success_audit_failure_is_reported(tmp_path: Path) -> None:
+    pipeline, _, _ = build_pipeline(tmp_path)
+    pipeline.audit_writer.side_effect = RuntimeError("audit unavailable")
+
+    with pytest.raises(RuntimeError, match="audit recording failed") as raised:
+        pipeline.run("2026-10-26")
+
+    assert raised.value.business_error is None
+    assert str(raised.value.audit_error) == "audit unavailable"
 
 
 def test_processing_exception_does_not_update_existing_watermark(

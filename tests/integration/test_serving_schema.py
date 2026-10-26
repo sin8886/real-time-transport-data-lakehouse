@@ -17,6 +17,7 @@ TABLE_NAMES = {
     "daily_metrics",
     "route_metrics",
     "stop_metrics",
+    "pipeline_runs",
 }
 
 
@@ -156,4 +157,40 @@ def test_metric_count_constraints_reject_negative_values(
     with pytest.raises(psycopg.errors.CheckViolation):
         postgres_connection.execute(
             f"INSERT INTO {table_name} ({columns}) VALUES ({values})"
+        )
+
+
+@pytest.mark.integration
+def test_pipeline_runs_constraints(
+    postgres_connection: psycopg.Connection,
+) -> None:
+    """Verify pipeline audit status and non-negative count constraints."""
+    initialize_schema(postgres_connection)
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        postgres_connection.execute(
+            """
+            INSERT INTO pipeline_runs (
+                run_id, pipeline_name, started_at, completed_at, duration_ms,
+                status, records_in, records_out, failed_records
+            )
+            VALUES (
+                '00000000-0000-0000-0000-000000000001', 'test', NOW(), NOW(), 0,
+                'running', 0, 0, 0
+            )
+            """
+        )
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        postgres_connection.execute(
+            """
+            INSERT INTO pipeline_runs (
+                run_id, pipeline_name, started_at, completed_at, duration_ms,
+                status, records_in, records_out, failed_records
+            )
+            VALUES (
+                '00000000-0000-0000-0000-000000000002', 'test', NOW(), NOW(), -1,
+                'success', 0, 0, 0
+            )
+            """
         )

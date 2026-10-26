@@ -52,3 +52,19 @@ CREATE TABLE IF NOT EXISTS stop_metrics (
         FOREIGN KEY (provider, stop_id)
         REFERENCES dim_stop (provider, stop_id)
 );
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    run_id UUID NOT NULL,
+    pipeline_name VARCHAR NOT NULL,
+    provider VARCHAR,
+    ingest_date DATE,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ NOT NULL,
+    duration_ms BIGINT NOT NULL CHECK (duration_ms >= 0),
+    status VARCHAR NOT NULL CHECK (status IN ('success', 'skipped', 'failed')),
+    records_in BIGINT NOT NULL CHECK (records_in >= 0),
+    records_out BIGINT NOT NULL CHECK (records_out >= 0),
+    failed_records BIGINT NOT NULL CHECK (failed_records >= 0),
+    error_message TEXT,
+    CONSTRAINT pipeline_runs_pkey PRIMARY KEY (run_id)
+);
