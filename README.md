@@ -56,6 +56,37 @@ message. Audit writes use their own PostgreSQL connection and transaction so a
 failed business run can still be recorded. Audit errors are surfaced rather
 than silently ignored.
 
+### Prefect Static Ingestion Flow (Day 22)
+
+Prefect is used only as an orchestration layer around the existing
+`IncrementalBatchPipeline`; fingerprinting, Bronze ingestion, snapshot
+processing, watermarking, and PostgreSQL audit remain in that pipeline. The
+retryable task performs at most three attempts (`retries=2`), and each attempt
+keeps the existing Day 21 audit behavior.
+
+Run one parameterized flow locally:
+
+```bash
+.venv/bin/python -m transport_lakehouse.flows.static_ingestion_flow \
+  --source-dir data/gtfs/at \
+  --provider at \
+  --ingest-date 2026-10-26
+```
+
+Start a local daily schedule at 02:00:
+
+```bash
+.venv/bin/python -m transport_lakehouse.flows.static_ingestion_flow \
+  --serve \
+  --source-dir data/gtfs/at \
+  --provider at
+```
+
+The `--serve` command uses Prefect's local `.serve()` mechanism with
+`cron="0 2 * * *"` and `webserver=False`. Prefect 3 starts a temporary local
+API service for orchestration; this process must remain running, and it is not
+a replacement for a durable Prefect Server or Prefect Cloud deployment.
+
 ### Windows Parquet prerequisite
 
 The Day 10 Spark lab keeps real Parquet writes and `partitionBy("route_id")`.
