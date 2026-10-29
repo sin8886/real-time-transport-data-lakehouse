@@ -112,3 +112,31 @@ options:
 The lab does not download executables or assume a machine-specific path. Its
 Parquet test writes to pytest's temporary directory and reads the files back
 to verify the partitions and schema.
+
+### Realtime Fetcher v1 (Day 25)
+
+The reusable AT GTFS Realtime fetcher is
+[`realtime_fetcher.py`](src/transport_lakehouse/ingestion/realtime_fetcher.py).
+It performs one request per explicit call and reads `AT_API_KEY` from the
+environment, with the optional `AT_REALTIME_ENDPOINT` override. The default
+endpoint is the validated AT combined feed. No key or authenticated URL is
+logged.
+
+```python
+from transport_lakehouse.ingestion.realtime_fetcher import RealtimeFetcher
+
+events = RealtimeFetcher().fetch(response_format="json")
+```
+
+`response_format="protobuf"` requests a GTFS-RT `FeedMessage` and parses it
+with the `gtfs-realtime-bindings` dependency. JSON and protobuf events are
+normalized to the Day 5 canonical envelope and event-specific fields for
+`vehicle_position`, `trip_update` (one event per stop-time update), and
+`service_alert`. For `service_alert`, v1 retains only the first available
+`active_period` and first `informed_entity`; additional time periods or
+affected entities may be discarded because the Day 5 contract does not define
+an array or child-table representation. Standard GTFS-RT Protobuf does not
+carry the AT JSON entity-level alert timestamp, so a Protobuf alert keeps
+`event_ts` null unless a supported source field provides it; feed-header time
+is not substituted. The fetcher does not publish to Kafka or implement
+streaming, watermarks, deduplication, or dead-letter handling.

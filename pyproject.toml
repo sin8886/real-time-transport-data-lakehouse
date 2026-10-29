@@ -15,8 +15,10 @@ authors = [
 dependencies = [
     "pyspark>=3.5,<4.0",
     "boto3>=1.43,<2.0",
+    "requests>=2.31,<3.0",
     "psycopg[binary]>=3.2,<4.0",
     "prefect>=3.0,<4.0",
+    "gtfs-realtime-bindings>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]
