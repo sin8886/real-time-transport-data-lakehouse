@@ -24,3 +24,6 @@ data/snapshots/
 # Large GTFS datasets: keep source data out of Git
 data/gtfs/
 !data/gtfs/.gitkeep
+
+# Local Benchmark v1 results and plans.
+reports/benchmarks/
