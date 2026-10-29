@@ -2,9 +2,11 @@
 
 ## Status
 
-The benchmark implementation is present, but the real AT data benchmark is
-**not yet executed**. This document intentionally contains no fabricated
-performance results.
+The real AT data benchmark has been executed successfully. The authoritative
+machine-readable report is
+[`reports/benchmarks/batch_performance_v1.json`](../reports/benchmarks/batch_performance_v1.json).
+The report status is `completed`; this document summarizes its measured
+results and does not replace the raw report.
 
 ## Purpose and scope
 
@@ -31,6 +33,10 @@ The default input is `data/gtfs/at`. Every case writes to a unique temporary
 directory created with `tempfile.mkdtemp`. The temporary Parquet directory is
 removed after the JSON report is written. Results are written separately to
 `reports/benchmarks/batch_performance_v1.json`, which is ignored by Git.
+
+The recorded run used Spark/PySpark 3.5.9, Python 3.12.3, Java 17,
+`local[*]`, and a 16-CPU WSL2 Linux environment. The input produced
+1,163,934 trip-stop events and used `OUT-202` as the fixed route filter.
 
 ## Partition benchmark
 
@@ -62,6 +68,13 @@ Each case records:
 
 Directory count is not treated as proof of effective partition pruning.
 
+Recorded median write times from the report:
+
+| Case | Median write time |
+|---|---:|
+| `baseline_unpartitioned` | 1,149.749 ms |
+| `partitioned_by_route_id` | 3,503.125 ms |
+
 ## File-size benchmark
 
 The same events DataFrame is written after temporary repartitioning:
@@ -76,6 +89,14 @@ Each case has an independent output directory. The report records requested
 and observed output partitions, write time, all-row read time, fixed-route
 filtered read time, file count, total size, min/max/mean/median size, and
 the output partition count.
+
+Recorded median write times from the report:
+
+| Case | Median write time |
+|---|---:|
+| `repartition(1)` | 2,295.215 ms |
+| `repartition(2)` | 1,904.678 ms |
+| `repartition(8)` | 1,510.905 ms |
 
 PySpark's lazy execution does not provide a reliable isolated shuffle timing
 from this runner without changing the execution behavior with caching or an
@@ -147,6 +168,14 @@ or execute this command.
 
 The lightweight tests cover file recognition, size statistics, partition
 directory recognition, schema serialization, result validation, and route
-filter validation. The real benchmark remains a manual, not-yet-executed
-experiment. A failure during a real run should be recorded with its cause;
-the implementation must not replace missing measurements with estimates.
+filter validation. The completed report also records all warm-up and measured
+runs, read timings, output file metadata, execution-plan summaries, and both
+Join measurements. The benchmark was run in local mode against one AT
+snapshot; it is not a production-cluster performance conclusion.
+
+Known limitations recorded in the report:
+
+- OS file caches were not cleared.
+- `local[*]` results do not represent a production cluster.
+- Repartition shuffle time is unavailable as a separate reliable measure.
+- `service_date` was not added to Day 17 events.
