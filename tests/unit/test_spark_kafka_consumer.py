@@ -155,3 +155,153 @@ def test_apply_event_time_watermark_rejects_empty_threshold(
         match="Watermark delay threshold cannot be empty",
     ):
         apply_event_time_watermark(source, "   ")
+
+
+def test_build_dedup_identity_for_vehicle_position(spark) -> None:
+    import json
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (
+        build_dedup_identity,
+    )
+
+    event = {
+        "event_type": "vehicle_position",
+        "source_provider": "at",
+        "source_entity_id": "entity-001",
+        "event_ts": "2026-10-29T06:00:00+00:00",
+        "vehicle_id": "vehicle-001",
+    }
+    source = spark.createDataFrame(
+        [(json.dumps(event),)],
+        ["message_value"],
+    )
+
+    result = build_dedup_identity(source).first()
+
+    assert result["identity_status"] == "resolved"
+    assert result["dedup_identity"] is not None
+    assert "entity-001" in result["dedup_identity"]
+    assert "vehicle-001" not in result["dedup_identity"]
+
+
+def test_build_dedup_identity_for_trip_update(spark) -> None:
+    import json
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (
+        build_dedup_identity,
+    )
+
+    event = {
+        "event_type": "trip_update",
+        "source_provider": "at",
+        "trip_id": "trip-001",
+        "stop_sequence": 3,
+        "stop_id": "stop-003",
+        "event_ts": "2026-10-29T06:00:00+00:00",
+    }
+    source = spark.createDataFrame(
+        [(json.dumps(event),)],
+        ["message_value"],
+    )
+
+    result = build_dedup_identity(source).first()
+
+    assert result["identity_status"] == "resolved"
+    assert "trip-001" in result["dedup_identity"]
+    assert "stop_sequence" in result["dedup_identity"]
+    assert '"3"' in result["dedup_identity"]
+
+
+def test_build_dedup_identity_for_service_alert(spark) -> None:
+    import json
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (
+        build_dedup_identity,
+    )
+
+    event = {
+        "event_type": "service_alert",
+        "source_provider": "at",
+        "alert_id": "alert-001",
+        "event_ts": "2026-10-29T06:00:00+00:00",
+    }
+    source = spark.createDataFrame(
+        [(json.dumps(event),)],
+        ["message_value"],
+    )
+
+    result = build_dedup_identity(source).first()
+
+    assert result["identity_status"] == "resolved"
+    assert "alert-001" in result["dedup_identity"]
+
+
+def test_build_dedup_identity_marks_missing_identity_unresolved(
+    spark,
+) -> None:
+    import json
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (
+        build_dedup_identity,
+    )
+
+    events = [
+        {
+            "event_type": "vehicle_position",
+            "source_provider": "at",
+            "event_ts": "2026-10-29T06:00:00+00:00",
+            "vehicle_id": "vehicle-001",
+        },
+        {
+            "event_type": "trip_update",
+            "source_provider": "at",
+            "trip_id": "trip-001",
+            "event_ts": "2026-10-29T06:00:00+00:00",
+        },
+        {
+            "event_type": "service_alert",
+            "source_provider": "at",
+            "event_ts": "2026-10-29T06:00:00+00:00",
+        },
+    ]
+    source = spark.createDataFrame(
+        [(json.dumps(event),) for event in events],
+        ["message_value"],
+    )
+
+    results = build_dedup_identity(source).collect()
+
+    assert len(results) == 3
+    assert all(
+        result["identity_status"] == "identity_unresolved"
+        for result in results
+    )
+    assert all(result["dedup_identity"] is None for result in results)
+
+
+def test_build_dedup_identity_uses_stop_id_when_sequence_missing(
+    spark,
+) -> None:
+    import json
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (
+        build_dedup_identity,
+    )
+
+    event = {
+        "event_type": "trip_update",
+        "source_provider": "at",
+        "trip_id": "trip-001",
+        "stop_id": "stop-003",
+        "event_ts": "2026-10-29T06:00:00+00:00",
+    }
+    source = spark.createDataFrame(
+        [(json.dumps(event),)],
+        ["message_value"],
+    )
+
+    result = build_dedup_identity(source).first()
+
+    assert result["identity_status"] == "resolved"
+    assert "stop_id" in result["dedup_identity"]
+    assert "stop-003" in result["dedup_identity"]

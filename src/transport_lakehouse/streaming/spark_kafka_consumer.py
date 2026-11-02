@@ -238,3 +238,161 @@ def apply_event_time_watermark(
         raise ValueError("Watermark delay threshold cannot be empty.")
 
     return event_stream.withWatermark("event_time", delay_threshold)
+
+
+def build_dedup_identity(event_stream: Any) -> Any:
+    """Build a contract-based technical identity for canonical events."""
+    from pyspark.sql.functions import (
+        coalesce,
+        col,
+        from_json,
+        length,
+        lit,
+        struct,
+        to_json,
+        trim,
+        when,
+    )
+    from pyspark.sql.types import (
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
+
+    identity_schema = StructType(
+        [
+            StructField("event_type", StringType(), True),
+            StructField("source_provider", StringType(), True),
+            StructField("source_entity_id", StringType(), True),
+            StructField("event_ts", StringType(), True),
+            StructField("trip_id", StringType(), True),
+            StructField("stop_id", StringType(), True),
+            StructField("stop_sequence", IntegerType(), True),
+            StructField("alert_id", StringType(), True),
+        ]
+    )
+
+    parsed = event_stream.withColumn(
+        "_identity_event",
+        from_json(col("message_value"), identity_schema),
+    )
+
+    event = col("_identity_event")
+    event_type = event.getField("event_type")
+    provider = event.getField("source_provider")
+    event_ts = event.getField("event_ts")
+
+    provider_present = provider.isNotNull() & (length(trim(provider)) > 0)
+    timestamp_present = event_ts.isNotNull() & (length(trim(event_ts)) > 0)
+
+    source_entity_id = event.getField("source_entity_id")
+    vehicle_id_present = (
+        source_entity_id.isNotNull()
+        & (length(trim(source_entity_id)) > 0)
+    )
+
+    trip_id = event.getField("trip_id")
+    trip_present = trip_id.isNotNull() & (length(trim(trip_id)) > 0)
+
+    stop_sequence = event.getField("stop_sequence")
+    stop_id = event.getField("stop_id")
+    stop_id_present = stop_id.isNotNull() & (length(trim(stop_id)) > 0)
+    stop_present = stop_sequence.isNotNull() | stop_id_present
+
+    alert_id = event.getField("alert_id")
+    alert_present = alert_id.isNotNull() & (length(trim(alert_id)) > 0)
+
+    vehicle_resolved = (
+        (event_type == "vehicle_position")
+        & provider_present
+        & timestamp_present
+        & vehicle_id_present
+    )
+    trip_resolved = (
+        (event_type == "trip_update")
+        & provider_present
+        & timestamp_present
+        & trip_present
+        & stop_present
+    )
+    alert_resolved = (
+        (event_type == "service_alert")
+        & provider_present
+        & timestamp_present
+        & alert_present
+    )
+
+    vehicle_identity = to_json(
+        struct(
+            event_type.alias("event_type"),
+            provider.alias("source_provider"),
+            source_entity_id.alias("source_entity_id"),
+            event_ts.alias("event_ts"),
+        )
+    )
+
+    trip_identity = to_json(
+        struct(
+            event_type.alias("event_type"),
+            provider.alias("source_provider"),
+            trip_id.alias("trip_id"),
+            when(stop_sequence.isNotNull(), lit("stop_sequence"))
+            .otherwise(lit("stop_id"))
+            .alias("stop_context_type"),
+            coalesce(stop_sequence.cast("string"), stop_id).alias(
+                "stop_context_value"
+            ),
+            event_ts.alias("event_ts"),
+        )
+    )
+
+    alert_identity = to_json(
+        struct(
+            event_type.alias("event_type"),
+            provider.alias("source_provider"),
+            alert_id.alias("alert_id"),
+            event_ts.alias("event_ts"),
+        )
+    )
+
+    return (
+        parsed.withColumn(
+            "dedup_identity",
+            when(vehicle_resolved, vehicle_identity)
+            .when(trip_resolved, trip_identity)
+            .when(alert_resolved, alert_identity)
+            .otherwise(lit(None).cast("string")),
+        )
+        .withColumn(
+            "identity_status",
+            when(col("dedup_identity").isNotNull(), lit("resolved"))
+            .otherwise(lit("identity_unresolved")),
+        )
+        .drop("_identity_event")
+    )
+
+
+def split_and_deduplicate_events(
+    event_stream: Any,
+    delay_threshold: str = "5 minutes",
+) -> tuple[Any, Any]:
+    """Return watermark-deduplicated events and unresolved-identity events."""
+    from pyspark.sql.functions import col
+
+    if not delay_threshold.strip():
+        raise ValueError("Watermark delay threshold cannot be empty.")
+
+    identified = build_dedup_identity(event_stream)
+
+    resolved = identified.filter(col("identity_status") == "resolved")
+    unresolved = identified.filter(
+        col("identity_status") == "identity_unresolved"
+    )
+
+    deduplicated = apply_event_time_watermark(
+        resolved,
+        delay_threshold=delay_threshold,
+    ).dropDuplicatesWithinWatermark(["dedup_identity"])
+
+    return deduplicated, unresolved
