@@ -206,3 +206,35 @@ def start_validation_query(
         bootstrap_servers=bootstrap_servers,
         checkpoint_location=checkpoint_location,
     )
+
+def parse_event_time(message_stream: Any) -> Any:
+    """Parse canonical event_ts JSON field into Spark event_time."""
+    from pyspark.sql.functions import col, from_json
+    from pyspark.sql.types import StringType, StructField, StructType
+
+    event_schema = StructType(
+        [StructField("event_ts", StringType(), True)]
+    )
+
+    return (
+        message_stream.withColumn(
+            "_event",
+            from_json(col("message_value"), event_schema),
+        )
+        .withColumn(
+            "event_time",
+            col("_event.event_ts").cast("timestamp"),
+        )
+        .drop("_event")
+    )
+
+
+def apply_event_time_watermark(
+    event_stream: Any,
+    delay_threshold: str = "5 minutes",
+) -> Any:
+    """Apply a watermark to the parsed event-time column."""
+    if not delay_threshold.strip():
+        raise ValueError("Watermark delay threshold cannot be empty.")
+
+    return event_stream.withWatermark("event_time", delay_threshold)

@@ -2,11 +2,23 @@ from __future__ import annotations
 
 import pytest
 
-from transport_lakehouse.streaming.spark_kafka_consumer import (
+pyspark = pytest.importorskip("pyspark")
+from pyspark.sql import SparkSession  # noqa: E402
+
+from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
     DEFAULT_BOOTSTRAP_SERVERS,
     RAW_TOPICS,
+    create_spark_session,
     read_kafka_stream,
 )
+
+
+
+@pytest.fixture(scope="module")
+def spark() -> SparkSession:
+    session = create_spark_session()
+    yield session
+    session.stop()
 
 
 class FakeReader:
@@ -72,3 +84,74 @@ def test_invalid_starting_offsets_is_rejected(
             spark,
             starting_offsets=starting_offsets,
         )
+
+
+def test_parse_event_time_converts_canonical_timestamp(spark) -> None:
+    from pyspark.sql.types import TimestampType
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
+        parse_event_time,
+    )
+
+    source = spark.createDataFrame(
+        [
+            ('{"event_ts":"2026-10-29T06:00:02+00:00"}',),
+        ],
+        ["message_value"],
+    )
+
+    result = parse_event_time(source)
+
+    assert isinstance(result.schema["event_time"].dataType, TimestampType)
+    assert result.first()["event_time"] is not None
+
+
+def test_parse_event_time_handles_missing_timestamp(spark) -> None:
+    from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
+        parse_event_time,
+    )
+
+    source = spark.createDataFrame(
+        [('{"event_type":"vehicle_position"}',)],
+        ["message_value"],
+    )
+
+    result = parse_event_time(source)
+
+    assert result.first()["event_time"] is None
+
+
+def test_apply_event_time_watermark(spark) -> None:
+    from pyspark.sql.types import TimestampType
+
+    from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
+        apply_event_time_watermark,
+    )
+
+    source = spark.createDataFrame(
+        [],
+        "event_time timestamp",
+    )
+
+    result = apply_event_time_watermark(source, "5 minutes")
+
+    assert isinstance(result.schema["event_time"].dataType, TimestampType)
+
+
+def test_apply_event_time_watermark_rejects_empty_threshold(
+    spark,
+) -> None:
+    from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
+        apply_event_time_watermark,
+    )
+
+    source = spark.createDataFrame(
+        [],
+        "event_time timestamp",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Watermark delay threshold cannot be empty",
+    ):
+        apply_event_time_watermark(source, "   ")
