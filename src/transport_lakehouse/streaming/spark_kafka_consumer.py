@@ -1,4 +1,4 @@
-"""Spark Structured Streaming consumer for raw transport Kafka topics."""
+"""Spark Structured Streaming consumers for transport Kafka topics."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ RAW_TOPICS = (
     "transport.service_alerts.raw",
 )
 
+VALIDATED_TOPIC = "transport.events.validated"
+DLQ_TOPIC = "transport.events.dlq"
+
 DEFAULT_BOOTSTRAP_SERVERS = "kafka:29092"
 
 
@@ -21,6 +24,10 @@ def create_spark_session() -> Any:
     return (
         SparkSession.builder.appName("TransportLakehouseKafkaStreaming")
         .config("spark.ui.showConsoleProgress", "false")
+        .config(
+            "spark.executorEnv.PYTHONPATH",
+            "/opt/transport-lakehouse/src",
+        )
         .getOrCreate()
     )
 
@@ -67,4 +74,127 @@ def start_console_query(message_stream: Any) -> Any:
         .option("numRows", 20)
         .trigger(processingTime="5 seconds")
         .start()
+    )
+
+
+def validate_kafka_stream(message_stream: Any) -> Any:
+    """Apply the canonical event validator to each Kafka message."""
+    from pyspark.sql.functions import udf
+    from pyspark.sql.types import (
+        BooleanType,
+        StringType,
+        StructField,
+        StructType,
+    )
+
+    from transport_lakehouse.streaming.stream_validation import (
+        validate_raw_message,
+    )
+
+    result_schema = StructType(
+        [
+            StructField("is_valid", BooleanType(), False),
+            StructField("error_type", StringType(), True),
+            StructField("error_message", StringType(), True),
+        ]
+    )
+
+    def validate_message(raw_message: str | None, source_topic: str) -> tuple:
+        result = validate_raw_message(
+            raw_message,
+            source_topic=source_topic,
+        )
+        return (
+            result.is_valid,
+            result.error_type,
+            result.error_message,
+        )
+
+    validate_udf = udf(validate_message, result_schema)
+
+    return message_stream.withColumn(
+        "validation",
+        validate_udf("message_value", "topic"),
+    )
+
+
+def split_validated_and_dlq(validated_stream: Any) -> tuple[Any, Any]:
+    """Split validated events from rejected messages."""
+    from pyspark.sql.functions import col, lit, struct, to_json
+
+    valid_stream = (
+        validated_stream.filter(col("validation.is_valid"))
+        .select(
+            col("message_key").cast("string").alias("key"),
+            col("message_value").cast("string").alias("value"),
+        )
+        .withColumn("topic", lit(VALIDATED_TOPIC))
+    )
+
+    dlq_stream = (
+        validated_stream.filter(~col("validation.is_valid"))
+        .select(
+            col("message_key"),
+            col("message_value"),
+            col("topic").alias("source_topic"),
+            col("partition").alias("source_partition"),
+            col("offset").alias("source_offset"),
+            col("timestamp").alias("kafka_timestamp"),
+            col("validation.error_type").alias("error_type"),
+            col("validation.error_message").alias("error_message"),
+        )
+        .select(
+            col("message_key").cast("string").alias("key"),
+            to_json(
+                struct(
+                    col("message_value").alias("raw_message"),
+                    col("source_topic"),
+                    col("source_partition"),
+                    col("source_offset"),
+                    col("kafka_timestamp"),
+                    col("error_type"),
+                    col("error_message"),
+                )
+            ).alias("value"),
+        )
+        .withColumn("topic", lit(DLQ_TOPIC))
+    )
+
+    return valid_stream, dlq_stream
+
+
+def start_kafka_sink(
+    output_stream: Any,
+    bootstrap_servers: str = DEFAULT_BOOTSTRAP_SERVERS,
+    checkpoint_location: str = "/tmp/transport-day30-checkpoint",
+) -> Any:
+    """Write records to the Kafka topic specified by each row."""
+    if not bootstrap_servers.strip():
+        raise ValueError("Kafka bootstrap servers cannot be empty.")
+    if not checkpoint_location.strip():
+        raise ValueError("Checkpoint location cannot be empty.")
+
+    return (
+        output_stream.select("key", "value", "topic")
+        .writeStream.format("kafka")
+        .option("kafka.bootstrap.servers", bootstrap_servers)
+        .outputMode("append")
+        .option("checkpointLocation", checkpoint_location)
+        .trigger(processingTime="5 seconds")
+        .start()
+    )
+
+
+def start_validation_query(
+    valid_stream: Any,
+    dlq_stream: Any,
+    bootstrap_servers: str = DEFAULT_BOOTSTRAP_SERVERS,
+    checkpoint_location: str = "/tmp/transport-day30-checkpoint",
+) -> Any:
+    """Route valid and rejected records through one Kafka sink query."""
+    combined_stream = valid_stream.unionByName(dlq_stream)
+    return start_kafka_sink(
+        combined_stream,
+        bootstrap_servers=bootstrap_servers,
+        checkpoint_location=checkpoint_location,
     )
