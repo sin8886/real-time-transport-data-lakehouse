@@ -36,19 +36,27 @@ def read_kafka_stream(
     spark: Any,
     bootstrap_servers: str = DEFAULT_BOOTSTRAP_SERVERS,
     topics: tuple[str, ...] = RAW_TOPICS,
+    starting_offsets: str = "earliest",
 ) -> Any:
-    """Subscribe to raw Kafka topics and return the streaming DataFrame."""
+    """Subscribe to Kafka topics with configurable initial offsets.
+
+    The starting_offsets setting only applies when a new checkpoint is
+    created. Existing checkpoints determine offsets during recovery.
+    """
     if not bootstrap_servers.strip():
         raise ValueError("Kafka bootstrap servers cannot be empty.")
 
     if not topics or any(not topic.strip() for topic in topics):
         raise ValueError("At least one non-empty Kafka topic is required.")
 
+    if starting_offsets not in {"earliest", "latest"}:
+        raise ValueError("starting_offsets must be 'earliest' or 'latest'.")
+
     return (
         spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", bootstrap_servers)
         .option("subscribe", ",".join(topics))
-        .option("startingOffsets", "earliest")
+        .option("startingOffsets", starting_offsets)
         .load()
     )
 

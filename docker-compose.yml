@@ -1,3 +1,4 @@
+
 services:
   kafka:
     image: apache/kafka:3.8.1
@@ -35,6 +36,7 @@ services:
     hostname: spark-master
     volumes:
       - ./:/opt/transport-lakehouse:ro
+      - ./checkpoints:/opt/transport-lakehouse-checkpoints
     environment:
       SPARK_MODE: master
       SPARK_NO_DAEMONIZE: "yes"
@@ -61,6 +63,7 @@ services:
     hostname: spark-worker
     volumes:
       - ./:/opt/transport-lakehouse:ro
+      - ./checkpoints:/opt/transport-lakehouse-checkpoints
     environment:
       SPARK_MODE: worker
       SPARK_NO_DAEMONIZE: "yes"

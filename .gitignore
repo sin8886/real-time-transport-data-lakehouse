@@ -27,3 +27,6 @@ data/gtfs/
 
 # Local Benchmark v1 results and plans.
 reports/benchmarks/
+
+# Spark Structured Streaming checkpoints
+checkpoints/
