@@ -383,6 +383,7 @@ def test_trip_schedule_relationship_uses_trip_descriptor_enum(
     events = parse_json_feed(payload, ingest_ts=INGEST_TS)
 
     assert events[0]["schedule_relationship"] is None
+    assert events[0]["trip_schedule_relationship"] == expected
     assert (
         _normalize_schedule_relationship(
             value,
@@ -451,11 +452,21 @@ def test_trip_update_skips_empty_stop_time_update() -> None:
     assert events == []
 
 
-def test_cancelled_trip_without_stop_updates_does_not_create_event() -> None:
+def test_cancelled_trip_without_stop_updates_creates_event() -> None:
     payload = _trip_update_payload([])
     payload["entity"][0]["trip_update"]["trip"]["schedule_relationship"] = 3
 
-    assert parse_json_feed(payload, ingest_ts=INGEST_TS) == []
+    events = parse_json_feed(payload, ingest_ts=INGEST_TS)
+
+    assert len(events) == 1
+    event = events[0]
+    assert event["event_type"] == "trip_update"
+    assert event["trip_id"] == "trip-1"
+    assert event["route_id"] == "route-1"
+    assert event["trip_schedule_relationship"] == "CANCELED"
+    assert event["schedule_relationship"] is None
+    assert event["stop_id"] is None
+    assert event["stop_sequence"] is None
 
 
 def test_deleted_stop_level_trip_update_preserves_tombstone() -> None:

@@ -267,7 +267,7 @@ def _normalize_trip_update(
     vehicle = _nested_dict(update, "vehicle")
     from google.transit import gtfs_realtime_pb2
 
-    _normalize_schedule_relationship(
+    trip_schedule_relationship = _normalize_schedule_relationship(
         _json_value(trip, "schedule_relationship"),
         "trip.schedule_relationship",
         gtfs_realtime_pb2.TripDescriptor.ScheduleRelationship,
@@ -280,7 +280,43 @@ def _normalize_trip_update(
             "stop_time_update must be a mapping, list, or tuple"
         )
     if not stop_updates:
-        return []
+        if trip_schedule_relationship != "CANCELED":
+            return []
+        if not trip_id:
+            raise RealtimeParseError("cancelled trip_update is missing trip_id")
+        event = _canonical_envelope(
+            "trip_update",
+            provider,
+            _json_value(entity, "id"),
+            _json_value(update, "timestamp"),
+            ingest_ts,
+            _json_value(entity, "is_deleted"),
+            "trip_update.timestamp",
+        )
+        event.update(
+            {
+                "trip_id": trip_id,
+                "route_id": _string_or_none(
+                    _json_value(trip, "route_id"), "route_id"
+                ),
+                "vehicle_id": _string_or_none(
+                    _json_value(vehicle, "id"), "vehicle_id"
+                ),
+                "stop_id": None,
+                "stop_sequence": None,
+                "scheduled_arrival_ts": None,
+                "scheduled_departure_ts": None,
+                "predicted_arrival_ts": None,
+                "predicted_departure_ts": None,
+                "delay_seconds": _integer_or_none(
+                    _json_value(update, "delay"),
+                    "delay_seconds",
+                ),
+                "schedule_relationship": None,
+                "trip_schedule_relationship": trip_schedule_relationship,
+            }
+        )
+        return [event]
     if not trip_id:
         raise RealtimeParseError("trip_update is missing trip_id")
 
@@ -343,6 +379,7 @@ def _normalize_trip_update(
                     "stop_time_update.schedule_relationship",
                     gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship,
                 ),
+                "trip_schedule_relationship": trip_schedule_relationship,
             }
         )
         result.append(event)
