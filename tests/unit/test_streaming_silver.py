@@ -310,3 +310,101 @@ def test_silver_requires_message_value_column(
 
     with pytest.raises(ValueError, match="message_value"):
         build_vehicle_position_silver(source)
+
+
+@pytest.mark.parametrize(
+    ("event_type", "builder"),
+    [
+        ("vehicle_position", build_vehicle_position_silver),
+        ("trip_update", build_trip_update_silver),
+        ("service_alert", build_service_alert_silver),
+    ],
+)
+def test_all_streaming_silver_outputs_preserve_tombstones(
+    spark: SparkSession,
+    event_type: str,
+    builder,
+) -> None:
+    event = {
+        "event_type": event_type,
+        "source_provider": "at",
+        "source_entity_id": f"{event_type}-deleted-001",
+        "event_ts": "2026-10-29T06:00:00+00:00",
+        "ingest_ts": "2026-10-29T06:00:05+00:00",
+        "is_deleted": True,
+    }
+
+    source = spark.createDataFrame(
+        [(json.dumps(event),)],
+        ["message_value"],
+    )
+
+    row = builder(source).first()
+
+    assert row is not None
+    assert row["event_type"] == event_type
+    assert row["is_deleted"] is True
+
+
+@pytest.mark.parametrize(
+    ("event_type", "builder"),
+    [
+        ("vehicle_position", build_vehicle_position_silver),
+        ("trip_update", build_trip_update_silver),
+        ("service_alert", build_service_alert_silver),
+    ],
+)
+def test_streaming_silver_fields_match_canonical_contract(
+    event_stream,
+    event_type: str,
+    builder,
+) -> None:
+    from pyspark.sql.types import (
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        StringType,
+        TimestampType,
+    )
+
+    from transport_lakehouse.contracts import (
+        CANONICAL_FIELD_TYPES,
+        REALTIME_EVENT_FIELDS,
+        UTC_TIMESTAMP_FIELDS,
+    )
+
+    result = builder(event_stream)
+
+    metadata_fields = {
+        "dedup_identity",
+        "identity_status",
+        "topic",
+        "partition",
+        "offset",
+        "raw_message",
+    }
+
+    expected_fields = set(REALTIME_EVENT_FIELDS[event_type])
+
+    # Each event must contain exactly its canonical fields plus metadata.
+    assert set(result.columns) == expected_fields | metadata_fields
+
+    spark_types = {
+        str: StringType,
+        int: IntegerType,
+        float: DoubleType,
+        bool: BooleanType,
+    }
+
+    for field in expected_fields:
+        expected_type = (
+            TimestampType
+            if field in UTC_TIMESTAMP_FIELDS
+            else spark_types[CANONICAL_FIELD_TYPES[field]]
+        )
+
+        assert type(result.schema[field].dataType) is expected_type, (
+            f"{event_type}.{field} must use "
+            f"{expected_type.__name__}, "
+            f"got {type(result.schema[field].dataType).__name__}"
+        )

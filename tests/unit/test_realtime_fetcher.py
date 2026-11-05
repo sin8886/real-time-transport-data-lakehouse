@@ -784,3 +784,13 @@ def test_fetcher_allows_missing_content_type_for_explicit_format() -> None:
     )
 
     assert fetcher.fetch()
+
+
+def test_realtime_fetcher_outputs_match_canonical_event_contracts() -> None:
+    from transport_lakehouse.contracts import REALTIME_EVENT_FIELDS
+
+    events = parse_json_feed(entity_payload(), ingest_ts=INGEST_TS)
+
+    for event in events:
+        expected_fields = set(REALTIME_EVENT_FIELDS[event["event_type"]])
+        assert set(event) == expected_fields

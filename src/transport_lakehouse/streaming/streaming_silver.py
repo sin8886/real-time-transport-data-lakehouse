@@ -6,50 +6,12 @@ from typing import Any
 
 
 def _parse_canonical_events(event_stream: Any) -> Any:
-    """Parse canonical JSON events into typed Silver columns."""
+    """Parse canonical JSON events using the shared data contract."""
     from pyspark.sql.functions import col, from_json
-    from pyspark.sql.types import (
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
 
-    schema = StructType(
-        [
-            StructField("event_type", StringType(), True),
-            StructField("source_provider", StringType(), True),
-            StructField("source_entity_id", StringType(), True),
-            StructField("event_ts", StringType(), True),
-            StructField("ingest_ts", StringType(), True),
-            StructField("vehicle_id", StringType(), True),
-            StructField("trip_id", StringType(), True),
-            StructField("route_id", StringType(), True),
-            StructField("latitude", DoubleType(), True),
-            StructField("longitude", DoubleType(), True),
-            StructField("speed", DoubleType(), True),
-            StructField("bearing", DoubleType(), True),
-            StructField("stop_id", StringType(), True),
-            StructField("stop_sequence", IntegerType(), True),
-            StructField("scheduled_arrival_ts", StringType(), True),
-            StructField("scheduled_departure_ts", StringType(), True),
-            StructField("predicted_arrival_ts", StringType(), True),
-            StructField("predicted_departure_ts", StringType(), True),
-            StructField("delay_seconds", IntegerType(), True),
-            StructField("schedule_relationship", StringType(), True),
-            StructField("trip_schedule_relationship", StringType(), True),
-            StructField("alert_id", StringType(), True),
-            StructField("active_start_ts", StringType(), True),
-            StructField("active_end_ts", StringType(), True),
-            StructField("cause", StringType(), True),
-            StructField("effect", StringType(), True),
-            StructField("description", StringType(), True),
-            StructField("affected_route_id", StringType(), True),
-            StructField("affected_trip_id", StringType(), True),
-            StructField("affected_stop_id", StringType(), True),
-        ]
-    )
+    from transport_lakehouse.contracts import build_realtime_spark_schema
+
+    schema = build_realtime_spark_schema()
 
     if "message_value" not in event_stream.columns:
         raise ValueError("event_stream must contain a message_value column")
@@ -128,6 +90,7 @@ def build_vehicle_position_silver(event_stream: Any) -> Any:
         "source_entity_id",
         "event_ts",
         "ingest_ts",
+        "is_deleted",
         "vehicle_id",
         "trip_id",
         "route_id",
@@ -165,6 +128,7 @@ def build_trip_update_silver(event_stream: Any) -> Any:
         "source_entity_id",
         "event_ts",
         "ingest_ts",
+        "is_deleted",
         "trip_id",
         "route_id",
         "vehicle_id",
@@ -207,6 +171,7 @@ def build_service_alert_silver(event_stream: Any) -> Any:
         "source_entity_id",
         "event_ts",
         "ingest_ts",
+        "is_deleted",
         "alert_id",
         "active_start_ts",
         "active_end_ts",

@@ -107,3 +107,20 @@ def test_build_silver_dimensions():
     assert result["routes"][0]["route_type"] == 3
     assert result["stops"][0]["latitude"] == -36.9
     assert result["trips"][0]["direction_id"] == 0
+
+
+def test_static_silver_outputs_match_canonical_dimension_contracts() -> None:
+    from transport_lakehouse.contracts import STATIC_DIMENSION_FIELDS
+
+    result = build_silver_dimensions(
+        {
+            "routes": [{"route_id": "R1", "route_type": "3"}],
+            "stops": [{"stop_id": "S1", "stop_lat": "-36.9", "stop_lon": "174.8"}],
+            "trips": [{"trip_id": "T1", "route_id": "R1"}],
+        }
+    )
+
+    for dimension_name, records in result.items():
+        assert dimension_name in STATIC_DIMENSION_FIELDS
+        for record in records:
+            assert set(record) == set(STATIC_DIMENSION_FIELDS[dimension_name])
