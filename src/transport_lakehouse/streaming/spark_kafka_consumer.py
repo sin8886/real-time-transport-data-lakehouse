@@ -23,6 +23,7 @@ def create_spark_session() -> Any:
 
     return (
         SparkSession.builder.appName("TransportLakehouseKafkaStreaming")
+        .config("spark.sql.session.timeZone", "UTC")
         .config("spark.ui.showConsoleProgress", "false")
         .config(
             "spark.executorEnv.PYTHONPATH",

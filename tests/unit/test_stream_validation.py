@@ -300,6 +300,36 @@ def test_trip_update_requires_stop_id_or_stop_sequence():
     assert "stop_id or stop_sequence" in result.error_message
 
 
+def test_cancelled_trip_update_allows_missing_stop_identifiers():
+    event = make_trip_event(
+        stop_id=None,
+        stop_sequence=None,
+        trip_schedule_relationship="CANCELED",
+    )
+
+    result = validate_raw_message(json.dumps(event))
+
+    assert result.is_valid is True
+
+
+def test_trip_update_without_stop_identifiers_requires_cancellation():
+    event = make_trip_event(stop_id=None, stop_sequence=None)
+
+    result = validate_raw_message(json.dumps(event))
+
+    assert result.is_valid is False
+    assert "stop_id or stop_sequence" in result.error_message
+
+
+def test_trip_schedule_relationship_must_be_string_or_null():
+    result = validate_raw_message(
+        json.dumps(make_trip_event(trip_schedule_relationship=3))
+    )
+
+    assert result.is_valid is False
+    assert "trip_schedule_relationship" in result.error_message
+
+
 def test_trip_update_accepts_stop_sequence_without_stop_id():
     event = make_trip_event(stop_id=None, stop_sequence=3)
 

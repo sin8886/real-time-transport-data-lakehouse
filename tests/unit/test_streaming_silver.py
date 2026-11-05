@@ -58,6 +58,7 @@ def event_stream(spark: SparkSession):
             "predicted_departure_ts": "2026-10-29T06:08:00+00:00",
             "delay_seconds": 120,
             "schedule_relationship": "SCHEDULED",
+            "trip_schedule_relationship": "SCHEDULED",
         },
         {
             "event_type": "service_alert",
@@ -138,12 +139,44 @@ def test_trip_update_silver_preserves_contract_fields(event_stream) -> None:
     assert row["stop_id"] == "stop-003"
     assert row["stop_sequence"] == 3
     assert row["delay_seconds"] == 120
+    assert row["trip_schedule_relationship"] == "SCHEDULED"
     assert isinstance(result.schema["stop_sequence"].dataType, IntegerType)
     assert isinstance(
         result.schema["predicted_arrival_ts"].dataType,
         TimestampType,
     )
     assert row["scheduled_arrival_ts"] < row["predicted_arrival_ts"]
+
+
+def test_trip_level_cancellation_without_stop_update_is_preserved(
+    spark: SparkSession,
+) -> None:
+    event = {
+        "event_type": "trip_update",
+        "source_provider": "at",
+        "source_entity_id": "trip-entity-cancelled",
+        "event_ts": "2026-10-29T06:01:00+00:00",
+        "ingest_ts": "2026-10-29T06:01:05+00:00",
+        "trip_id": "trip-cancelled",
+        "route_id": "route-002",
+        "vehicle_id": None,
+        "stop_id": None,
+        "stop_sequence": None,
+        "delay_seconds": None,
+        "schedule_relationship": None,
+        "trip_schedule_relationship": "CANCELED",
+    }
+    source = spark.createDataFrame(
+        [(json.dumps(event),)],
+        ["message_value"],
+    )
+
+    row = build_trip_update_silver(source).first()
+
+    assert row["trip_id"] == "trip-cancelled"
+    assert row["stop_id"] is None
+    assert row["stop_sequence"] is None
+    assert row["trip_schedule_relationship"] == "CANCELED"
 
 
 def test_service_alert_silver_preserves_affected_entities(

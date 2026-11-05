@@ -34,6 +34,7 @@ def create_spark_session() -> Any:
 
     return (
         SparkSession.builder.appName("TransportLakehouseBatch")
+        .config("spark.sql.session.timeZone", "UTC")
         .master("local[*]")
         .config("spark.ui.showConsoleProgress", "false")
         .getOrCreate()

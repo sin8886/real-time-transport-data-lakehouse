@@ -48,6 +48,7 @@ STRING_FIELDS = {
     "affected_trip_id",
     "affected_stop_id",
     "schedule_relationship",
+    "trip_schedule_relationship",
 }
 
 NUMERIC_FIELDS = {
@@ -191,7 +192,12 @@ def validate_event(
     if event_type == "trip_update":
         stop_id = event.get("stop_id")
         stop_sequence = event.get("stop_sequence")
-        if (stop_id is None or not stop_id.strip()) and stop_sequence is None:
+        is_cancelled = event.get("trip_schedule_relationship") == "CANCELED"
+        if (
+            not is_cancelled
+            and (stop_id is None or not stop_id.strip())
+            and stop_sequence is None
+        ):
             return _invalid_schema("trip_update requires stop_id or stop_sequence")
 
     return ValidationResult(True, None, None, event)

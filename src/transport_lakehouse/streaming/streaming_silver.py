@@ -38,6 +38,7 @@ def _parse_canonical_events(event_stream: Any) -> Any:
             StructField("predicted_departure_ts", StringType(), True),
             StructField("delay_seconds", IntegerType(), True),
             StructField("schedule_relationship", StringType(), True),
+            StructField("trip_schedule_relationship", StringType(), True),
             StructField("alert_id", StringType(), True),
             StructField("active_start_ts", StringType(), True),
             StructField("active_end_ts", StringType(), True),
@@ -175,6 +176,7 @@ def build_trip_update_silver(event_stream: Any) -> Any:
         "predicted_departure_ts",
         "delay_seconds",
         "schedule_relationship",
+        "trip_schedule_relationship",
         *[
             field
             for field in (
