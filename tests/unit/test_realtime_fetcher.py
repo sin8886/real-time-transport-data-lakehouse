@@ -844,7 +844,7 @@ def test_fetcher_retries_connection_error_then_succeeds() -> None:
     sleep.assert_called_once_with(0.5)
 
 
-@pytest.mark.parametrize("status_code", [429, 500, 502, 503])
+@pytest.mark.parametrize("status_code", [429, 500, 502, 503, 504, 599])
 def test_fetcher_retries_retryable_http_status(
     status_code: int,
 ) -> None:
