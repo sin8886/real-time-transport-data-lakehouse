@@ -794,3 +794,151 @@ def test_realtime_fetcher_outputs_match_canonical_event_contracts() -> None:
     for event in events:
         expected_fields = set(REALTIME_EVENT_FIELDS[event["event_type"]])
         assert set(event) == expected_fields
+
+
+def test_fetcher_retries_timeout_then_succeeds() -> None:
+    import requests
+
+    response = Mock()
+    response.content = json.dumps(entity_payload()).encode()
+    response.headers = {"Content-Type": "application/json"}
+    response.raise_for_status.return_value = None
+
+    http_get = Mock(side_effect=[requests.Timeout(), response])
+    sleep = Mock()
+
+    fetcher = RealtimeFetcher(
+        api_key="test-key",
+        http_get=http_get,
+        sleep=sleep,
+    )
+
+    events = fetcher.fetch()
+
+    assert len(events) == 4
+    assert http_get.call_count == 2
+    sleep.assert_called_once_with(0.5)
+
+
+def test_fetcher_retries_connection_error_then_succeeds() -> None:
+    import requests
+
+    response = Mock()
+    response.content = json.dumps(entity_payload()).encode()
+    response.headers = {"Content-Type": "application/json"}
+    response.raise_for_status.return_value = None
+
+    http_get = Mock(
+        side_effect=[requests.ConnectionError(), response]
+    )
+    sleep = Mock()
+
+    fetcher = RealtimeFetcher(
+        api_key="test-key",
+        http_get=http_get,
+        sleep=sleep,
+    )
+
+    assert fetcher.fetch()
+    assert http_get.call_count == 2
+    sleep.assert_called_once_with(0.5)
+
+
+@pytest.mark.parametrize("status_code", [429, 500, 502, 503])
+def test_fetcher_retries_retryable_http_status(
+    status_code: int,
+) -> None:
+    import requests
+
+    error_response = requests.Response()
+    error_response.status_code = status_code
+    http_error = requests.HTTPError(response=error_response)
+
+    response = Mock()
+    response.content = json.dumps(entity_payload()).encode()
+    response.headers = {"Content-Type": "application/json"}
+    response.raise_for_status.return_value = None
+
+    http_get = Mock(
+        side_effect=[
+            http_error,
+            response,
+        ]
+    )
+    sleep = Mock()
+
+    fetcher = RealtimeFetcher(
+        api_key="test-key",
+        http_get=http_get,
+        sleep=sleep,
+    )
+
+    assert fetcher.fetch()
+    assert http_get.call_count == 2
+    sleep.assert_called_once_with(0.5)
+
+
+def test_fetcher_does_not_retry_non_retryable_http_status() -> None:
+    import requests
+
+    error_response = requests.Response()
+    error_response.status_code = 400
+
+    http_error = requests.HTTPError(response=error_response)
+    http_get = Mock(side_effect=http_error)
+    sleep = Mock()
+
+    fetcher = RealtimeFetcher(
+        api_key="test-key",
+        http_get=http_get,
+        sleep=sleep,
+    )
+
+    with pytest.raises(RealtimeHTTPError, match="request failed"):
+        fetcher.fetch()
+
+    assert http_get.call_count == 1
+    sleep.assert_not_called()
+
+
+def test_fetcher_stops_after_max_attempts() -> None:
+    import requests
+
+    http_get = Mock(side_effect=requests.Timeout())
+    sleep = Mock()
+
+    fetcher = RealtimeFetcher(
+        api_key="test-key",
+        http_get=http_get,
+        max_attempts=3,
+        sleep=sleep,
+    )
+
+    with pytest.raises(RealtimeHTTPError, match="timed out"):
+        fetcher.fetch()
+
+    assert http_get.call_count == 3
+    assert [call.args[0] for call in sleep.call_args_list] == [
+        0.5,
+        1.0,
+    ]
+
+
+def test_fetcher_validates_retry_configuration() -> None:
+    invalid_attempts = [0, -1, 1.5, True, "3"]
+
+    for value in invalid_attempts:
+        with pytest.raises(ValueError, match="max_attempts"):
+            RealtimeFetcher(
+                api_key="test-key",
+                max_attempts=value,
+            )
+
+    invalid_backoffs = [-1, float("nan"), float("inf"), True, "0.5"]
+
+    for value in invalid_backoffs:
+        with pytest.raises(ValueError, match="retry_backoff_seconds"):
+            RealtimeFetcher(
+                api_key="test-key",
+                retry_backoff_seconds=value,
+            )

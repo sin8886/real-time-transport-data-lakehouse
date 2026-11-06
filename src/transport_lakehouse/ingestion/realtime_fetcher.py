@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 import math
 import os
+import time
 from typing import Any, Callable, Mapping, Protocol
 
 import requests
@@ -673,12 +674,41 @@ class RealtimeFetcher:
         timeout: float = 10.0,
         http_get: HTTPGet | None = None,
         clock: Callable[[], datetime] | None = None,
+        max_attempts: int = 3,
+        retry_backoff_seconds: float = 0.5,
+        sleep: Callable[[float], None] | None = None,
     ) -> None:
         self.api_key = api_key or os.getenv("AT_API_KEY")
         if not self.api_key:
             raise ValueError("AT_API_KEY is not configured")
-        if timeout <= 0:
-            raise ValueError("timeout must be positive")
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not math.isfinite(timeout)
+            or timeout <= 0
+        ):
+            raise ValueError("timeout must be a finite positive number")
+        if (
+            isinstance(max_attempts, bool)
+            or not isinstance(max_attempts, int)
+            or max_attempts < 1
+        ):
+            raise ValueError("max_attempts must be a positive integer")
+        if (
+            isinstance(retry_backoff_seconds, bool)
+            or not isinstance(retry_backoff_seconds, (int, float))
+            or not math.isfinite(retry_backoff_seconds)
+            or retry_backoff_seconds < 0
+        ):
+            raise ValueError(
+                "retry_backoff_seconds must be a finite non-negative number"
+            )
+        if sleep is not None and not callable(sleep):
+            raise ValueError("sleep must be callable")
+
+        self.max_attempts = max_attempts
+        self.retry_backoff_seconds = retry_backoff_seconds
+        self.sleep = sleep if sleep is not None else time.sleep
         self.endpoint = endpoint or os.getenv(
             "AT_REALTIME_ENDPOINT", DEFAULT_AT_ENDPOINT
         )
@@ -696,21 +726,49 @@ class RealtimeFetcher:
             if response_format == "protobuf"
             else "application/json"
         )
-        try:
-            response = self.http_get(
-                self.endpoint,
-                headers={
-                    "Accept": accept,
-                    "Ocp-Apim-Subscription-Key": self.api_key,
-                    "User-Agent": "real-time-transport-data-lakehouse/1.0",
-                },
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-        except requests.Timeout as error:
-            raise RealtimeHTTPError("realtime request timed out") from error
-        except requests.RequestException as error:
-            raise RealtimeHTTPError("realtime request failed") from error
+        response = None
+        for attempt in range(self.max_attempts):
+            try:
+                response = self.http_get(
+                    self.endpoint,
+                    headers={
+                        "Accept": accept,
+                        "Ocp-Apim-Subscription-Key": self.api_key,
+                        "User-Agent": "real-time-transport-data-lakehouse/1.0",
+                    },
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                break
+            except requests.Timeout as error:
+                if attempt + 1 < self.max_attempts:
+                    self.sleep(self.retry_backoff_seconds * (2**attempt))
+                    continue
+                raise RealtimeHTTPError(
+                    "realtime request timed out"
+                ) from error
+            except requests.HTTPError as error:
+                status_code = getattr(
+                    getattr(error, "response", None), "status_code", None
+                )
+                retryable = status_code == 429 or (
+                    status_code is not None and 500 <= status_code <= 599
+                )
+                if retryable and attempt + 1 < self.max_attempts:
+                    self.sleep(self.retry_backoff_seconds * (2**attempt))
+                    continue
+                raise RealtimeHTTPError(
+                    "realtime request failed"
+                ) from error
+            except requests.ConnectionError as error:
+                if attempt + 1 < self.max_attempts:
+                    self.sleep(self.retry_backoff_seconds * (2**attempt))
+                    continue
+                raise RealtimeHTTPError(
+                    "realtime request failed"
+                ) from error
+            except requests.RequestException as error:
+                raise RealtimeHTTPError("realtime request failed") from error
         content_type = response.headers.get("Content-Type", "")
         media_type = content_type.split(";", 1)[0].strip().lower()
         expected_types = {
