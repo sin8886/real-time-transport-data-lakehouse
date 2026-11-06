@@ -144,3 +144,15 @@ def test_run_dimension_quality_checks():
     assert result["total_checks"] == 11
     assert result["passed_checks"] == 11
     assert result["failed_checks"] == 0
+
+
+def test_check_geo_rejects_nan_coordinates():
+    records = [
+        {"latitude": float("nan"), "longitude": 174.76},
+        {"latitude": -36.85, "longitude": float("nan")},
+    ]
+
+    result = check_geo(records)
+
+    assert result["passed"] is False
+    assert result["failed_records"] == 2

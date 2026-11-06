@@ -239,3 +239,30 @@ def test_repeated_run_after_success_is_idempotent(tmp_path: Path) -> None:
 
     assert first["fingerprint"] == second["fingerprint"]
     assert snapshot_pipeline.run.call_count == 1
+
+
+def test_watermark_write_failure_preserves_previous_watermark_and_audits_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pipeline, snapshot_pipeline, watermark_path = build_pipeline(tmp_path)
+
+    pipeline.run("2026-10-26")
+    original_content = watermark_path.read_text(encoding="utf-8")
+
+    (tmp_path / "feed" / "routes.txt").write_text(
+        "route_id\nr1\nr2\n",
+        encoding="utf-8",
+    )
+
+    def fail_write(provider: str, watermark: dict[str, str]) -> None:
+        raise OSError("simulated watermark storage failure")
+
+    monkeypatch.setattr(pipeline.watermarks, "write", fail_write)
+
+    with pytest.raises(OSError, match="simulated watermark storage failure"):
+        pipeline.run("2026-10-27")
+
+    assert watermark_path.read_text(encoding="utf-8") == original_content
+    assert pipeline.audit_writer.call_args.kwargs["status"] == "failed"
+    assert snapshot_pipeline.run.call_count == 2

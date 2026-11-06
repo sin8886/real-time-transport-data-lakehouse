@@ -116,3 +116,82 @@ def test_ingestion_rejects_invalid_date_format(
 
     with pytest.raises(ValueError, match="YYYY-MM-DD"):
         ingestion.ingest(invalid_date)
+
+
+def test_feed_fingerprint_is_deterministic(tmp_path: Path) -> None:
+    source_dir = tmp_path / "feed"
+    source_dir.mkdir()
+    (source_dir / "routes.txt").write_text(
+        "route_id\nr1\n", encoding="utf-8"
+    )
+    (source_dir / "stops.txt").write_text(
+        "stop_id\ns1\n", encoding="utf-8"
+    )
+
+    ingestion = StaticGTFSIngestion(
+        source_dir=source_dir,
+        storage=MagicMock(),
+    )
+
+    first = ingestion.feed_fingerprint()
+    second = ingestion.feed_fingerprint()
+
+    assert first == second
+    assert len(first) == 64
+
+
+def test_feed_fingerprint_changes_when_file_content_changes(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "feed"
+    source_dir.mkdir()
+    routes_file = source_dir / "routes.txt"
+    routes_file.write_text("route_id\nr1\n", encoding="utf-8")
+
+    ingestion = StaticGTFSIngestion(
+        source_dir=source_dir,
+        storage=MagicMock(),
+    )
+
+    original = ingestion.feed_fingerprint()
+
+    routes_file.write_text("route_id\nr1\nr2\n", encoding="utf-8")
+
+    updated = ingestion.feed_fingerprint()
+
+    assert updated != original
+
+
+def test_feed_fingerprint_changes_when_file_name_changes(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "feed"
+    source_dir.mkdir()
+    routes_file = source_dir / "routes.txt"
+    routes_file.write_text("route_id\nr1\n", encoding="utf-8")
+
+    ingestion = StaticGTFSIngestion(
+        source_dir=source_dir,
+        storage=MagicMock(),
+    )
+
+    original = ingestion.feed_fingerprint()
+
+    routes_file.rename(source_dir / "routes_backup.txt")
+
+    updated = ingestion.feed_fingerprint()
+
+    assert updated != original
+
+
+def test_feed_fingerprint_rejects_empty_directory(tmp_path: Path) -> None:
+    source_dir = tmp_path / "empty"
+    source_dir.mkdir()
+
+    ingestion = StaticGTFSIngestion(
+        source_dir=source_dir,
+        storage=MagicMock(),
+    )
+
+    with pytest.raises(FileNotFoundError, match="No GTFS text files"):
+        ingestion.feed_fingerprint()
