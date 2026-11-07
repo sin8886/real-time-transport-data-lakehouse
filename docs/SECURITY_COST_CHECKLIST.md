@@ -94,8 +94,8 @@ configured.
 - [x] S3 SSE-S3 encryption verified.
 - [x] Bucket Versioning status verified.
 - [x] Three S3 Lifecycle rules enabled.
-- [ ] Full pytest suite passed.
-- [ ] Ruff check passed.
-- [ ] Git diff check passed.
+- [x] Full pytest suite passed (459 passed, 14 skipped).
+- [x] Ruff check passed.
+- [x] Git diff check passed.
 - [ ] Changes committed and pushed.
 
