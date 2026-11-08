@@ -96,9 +96,7 @@ def partition_statistics(
     root_path = Path(root)
     route_counts_by_value = route_counts_by_value or {}
     directories = sorted(
-        path
-        for path in root_path.rglob(f"{partition_column}=*")
-        if path.is_dir()
+        path for path in root_path.rglob(f"{partition_column}=*") if path.is_dir()
     )
     partitions = []
     for directory in directories:
@@ -109,8 +107,7 @@ def partition_statistics(
     return {
         "directory_count": len(directories),
         "non_empty_partition_count": sum(
-            partition["row_count"] > 0
-            for partition in partitions
+            partition["row_count"] > 0 for partition in partitions
         ),
         "empty_partition_count": sum(
             partition["row_count"] == 0 for partition in partitions
@@ -473,7 +470,9 @@ def build_active_trip_join(
     }
 
 
-def measure_join(name: str, builder: Callable[[], Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def measure_join(
+    name: str, builder: Callable[[], Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     """Measure lazy construction separately from the count action."""
     result, construction_ms = elapsed_ms(builder)
     plan = explain_summary(result)

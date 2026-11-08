@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
-from transport_lakehouse.processing.gold_metrics import (
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+from transport_lakehouse.processing.gold_metrics import (  # noqa: E402
     build_gold_metrics,
     filter_active_trips,
     get_active_service_ids,
-)
-from transport_lakehouse.processing.gold_writer import write_gold_parquet
-from transport_lakehouse.processing.parse_static import parse_static_feed
-from transport_lakehouse.processing.spark_batch import (
+)  # noqa: E402
+from transport_lakehouse.processing.gold_writer import write_gold_parquet  # noqa: E402
+from transport_lakehouse.processing.parse_static import parse_static_feed  # noqa: E402
+from transport_lakehouse.processing.spark_batch import (  # noqa: E402
     build_trip_stop_events,
     create_spark_session,
     load_gtfs_tables,
-)
+)  # noqa: E402
 
 
 def main() -> None:

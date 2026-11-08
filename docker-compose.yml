@@ -32,12 +32,17 @@ services:
       start_period: 20s
 
   spark-master:
-    image: apache/spark:3.5.3
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    image: real-time-transport-data-lakehouse/spark:3.5.3-kafka
     hostname: spark-master
     volumes:
       - ./:/opt/transport-lakehouse:ro
       - ./checkpoints:/opt/transport-lakehouse-checkpoints
     environment:
+      PYSPARK_DRIVER_PYTHON: /usr/bin/python3
+      PYSPARK_PYTHON: /usr/bin/python3
       SPARK_MODE: master
       SPARK_NO_DAEMONIZE: "yes"
       SPARK_MASTER_HOST: spark-master
@@ -59,12 +64,16 @@ services:
       start_period: 20s
 
   spark-worker:
-    image: apache/spark:3.5.3
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    image: real-time-transport-data-lakehouse/spark:3.5.3-kafka
     hostname: spark-worker
     volumes:
       - ./:/opt/transport-lakehouse:ro
       - ./checkpoints:/opt/transport-lakehouse-checkpoints
     environment:
+      PYSPARK_PYTHON: /usr/bin/python3
       SPARK_MODE: worker
       SPARK_NO_DAEMONIZE: "yes"
       SPARK_MASTER_URL: spark://spark-master:7077

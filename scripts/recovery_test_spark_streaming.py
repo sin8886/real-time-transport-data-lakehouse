@@ -21,9 +21,7 @@ from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
 )
 
 TEST_TOPIC = "transport.vehicle_positions.raw"
-DEFAULT_CHECKPOINT = (
-    "/opt/transport-lakehouse-checkpoints/day31/recovery-test"
-)
+DEFAULT_CHECKPOINT = "/opt/transport-lakehouse-checkpoints/day31/recovery-test"
 
 
 def build_test_event(index: int) -> dict[str, Any]:
@@ -46,7 +44,12 @@ def build_test_event(index: int) -> dict[str, Any]:
     }
 
 
-def publish_test_event(spark: Any, bootstrap_servers: str, index: int) -> None:
+def publish_test_event(
+    spark: Any,
+    bootstrap_servers: str,
+    topic: str,
+    index: int,
+) -> None:
     """Publish one synthetic event to the raw Kafka topic using Spark."""
     from pyspark.sql.types import (
         StringType,
@@ -64,7 +67,7 @@ def publish_test_event(spark: Any, bootstrap_servers: str, index: int) -> None:
     )
     row = [
         (
-            TEST_TOPIC,
+            topic,
             event["vehicle_id"],
             json.dumps(event, ensure_ascii=False, sort_keys=True),
         )
@@ -83,13 +86,14 @@ def publish_test_event(spark: Any, bootstrap_servers: str, index: int) -> None:
 def start_recovery_query(
     spark: Any,
     bootstrap_servers: str,
+    topic: str,
     checkpoint_location: str,
 ) -> Any:
     """Start a Kafka streaming query using the persistent checkpoint."""
     kafka_stream = read_kafka_stream(
         spark,
         bootstrap_servers=bootstrap_servers,
-        topics=(TEST_TOPIC,),
+        topics=(topic,),
         starting_offsets="latest",
     )
     message_stream = select_message_columns(kafka_stream)
@@ -113,10 +117,7 @@ def wait_for_input_rows(query: Any, expected_rows: int) -> int:
         query.processAllAvailable()
 
         progress = query.recentProgress
-        total_rows = sum(
-            int(item.get("numInputRows", 0))
-            for item in progress
-        )
+        total_rows = sum(int(item.get("numInputRows", 0)) for item in progress)
 
         if total_rows >= expected_rows:
             return total_rows
@@ -127,8 +128,7 @@ def wait_for_input_rows(query: Any, expected_rows: int) -> int:
         time.sleep(1)
 
     raise TimeoutError(
-        f"Expected {expected_rows} input rows, "
-        f"but observed {total_rows}."
+        f"Expected {expected_rows} input rows, but observed {total_rows}."
     )
 
 
@@ -147,10 +147,7 @@ def checkpoint_has_progress(checkpoint_location: Path) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description=(
-            "Test Spark Structured Streaming checkpoint "
-            "restart and recovery."
-        )
+        description=("Test Spark Structured Streaming checkpoint restart and recovery.")
     )
     parser.add_argument(
         "--bootstrap-servers",
@@ -159,6 +156,11 @@ def main() -> int:
     parser.add_argument(
         "--checkpoint-location",
         default=DEFAULT_CHECKPOINT,
+    )
+    parser.add_argument(
+        "--topic",
+        default=TEST_TOPIC,
+        help="Kafka topic isolated for this recovery test.",
     )
     args = parser.parse_args()
 
@@ -182,17 +184,16 @@ def main() -> int:
         query = start_recovery_query(
             spark,
             args.bootstrap_servers,
+            args.topic,
             args.checkpoint_location,
         )
         print(f"Initial query started: {query.id}")
 
-        publish_test_event(spark, args.bootstrap_servers, 1)
+        publish_test_event(spark, args.bootstrap_servers, args.topic, 1)
         first_rows = wait_for_input_rows(query, expected_rows=1)
 
         if first_rows != 1:
-            raise RuntimeError(
-                f"Expected exactly 1 first-phase row, got {first_rows}."
-            )
+            raise RuntimeError(f"Expected exactly 1 first-phase row, got {first_rows}.")
 
         print(f"First phase processed rows: {first_rows}")
 
@@ -201,9 +202,7 @@ def main() -> int:
         print("Initial query stopped gracefully.")
 
         if not checkpoint_has_progress(checkpoint_path):
-            raise RuntimeError(
-                "Checkpoint offset/commit metadata was not created."
-            )
+            raise RuntimeError("Checkpoint offset/commit metadata was not created.")
 
         print("Checkpoint offset and commit metadata verified.")
 
@@ -211,11 +210,12 @@ def main() -> int:
         query = start_recovery_query(
             spark,
             args.bootstrap_servers,
+            args.topic,
             args.checkpoint_location,
         )
         print(f"Recovered query started: {query.id}")
 
-        publish_test_event(spark, args.bootstrap_servers, 2)
+        publish_test_event(spark, args.bootstrap_servers, args.topic, 2)
         second_rows = wait_for_input_rows(query, expected_rows=1)
 
         if second_rows != 1:
