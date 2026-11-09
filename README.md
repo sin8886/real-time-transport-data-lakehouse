@@ -8,7 +8,7 @@ with GTFS Realtime events from Auckland Transport and Metlink.
 ```text
 src/transport_lakehouse/  Python package
 tests/                    Automated tests
-data/                     Validated Static data and future local inputs
+data/                     Validated Static data and local runtime inputs
 docs/                     Project charter, evidence, contract, and architecture
 scripts/                  Validation and operational helper scripts
 ```

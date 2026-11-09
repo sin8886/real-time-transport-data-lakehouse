@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "real-time-transport-data-lakehouse"
-version = "1.0.0"
-description = "Local-first data platform skeleton for GTFS Static and Realtime transport data."
+version = "1.0.2"
+description = "Local-first data platform for GTFS Static and Realtime transport data."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
