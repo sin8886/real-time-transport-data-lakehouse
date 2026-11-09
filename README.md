@@ -12,7 +12,12 @@ docs/                     Project charter, evidence, contract, and architecture
 scripts/                  Validation and operational helper scripts
 ```
 
-The current skeleton intentionally does not implement Kafka, Spark, API clients, or ingestion pipelines. See [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md), [docs/DATA_CONTRACT_V1.md](docs/DATA_CONTRACT_V1.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project boundaries and design.
+The project implements the core batch and streaming MVP, including Kafka,
+Spark Structured Streaming, Docker reproducibility, data quality, checkpoint
+recovery, and Parquet outputs. See [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md),
+[docs/DATA_CONTRACT_V1.md](docs/DATA_CONTRACT_V1.md), and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project boundaries and
+design.
 
 ## Local Setup
 
@@ -33,6 +38,17 @@ pytest
 ruff check .
 ruff format --check .
 ```
+
+## Final project evidence
+
+- [Day 48 Portfolio Evidence](docs/DAY48_PORTFOLIO_EVIDENCE.md)
+- [Day 49 Interview Pack](docs/DAY49_INTERVIEW_PACK.md)
+- [Day 50 Final Acceptance](docs/DAY50_FINAL_ACCEPTANCE.md)
+- [Day 47 Clean-room Spark image](Dockerfile.spark)
+
+The v1.0 release is a local-first, reproducible portfolio MVP. It documents
+its operational limitations instead of claiming production-scale throughput,
+managed infrastructure, or end-to-end exactly-once delivery.
 
 ### Incremental Static Batch (Day 20)
 
