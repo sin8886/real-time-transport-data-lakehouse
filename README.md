@@ -44,6 +44,7 @@ ruff format --check .
 - [Day 48 Portfolio Evidence](docs/DAY48_PORTFOLIO_EVIDENCE.md)
 - [Day 49 Interview Pack](docs/DAY49_INTERVIEW_PACK.md)
 - [Day 50 Final Acceptance](docs/DAY50_FINAL_ACCEPTANCE.md)
+- [Operations Guide](docs/OPERATIONS_GUIDE.md)
 - [Day 47 Clean-room Spark image](Dockerfile.spark)
 
 The v1.0 release is a local-first, reproducible portfolio MVP. It documents
