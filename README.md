@@ -1,11 +1,12 @@
 # Real-Time Transport Data Lakehouse
 
-A local-first project skeleton for combining GTFS Static reference data with GTFS Realtime events from Auckland Transport and Metlink.
+A local-first transport data platform for combining GTFS Static reference data
+with GTFS Realtime events from Auckland Transport and Metlink.
 
 ## Repository Structure
 
 ```text
-src/transport_lakehouse/  Python package areas for future implementation
+src/transport_lakehouse/  Python package
 tests/                    Automated tests
 data/                     Validated Static data and future local inputs
 docs/                     Project charter, evidence, contract, and architecture
@@ -29,7 +30,8 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-Copy `.env.example` to `.env` and provide local credentials only when a future implementation requires them. Do not commit `.env` or expose API keys.
+Copy `.env.example` to `.env` when local credentials are required. Do not
+commit `.env` or expose API keys.
 
 Run the checks from the repository root:
 
