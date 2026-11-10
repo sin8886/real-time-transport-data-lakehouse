@@ -66,10 +66,20 @@ st.markdown(
     [data-testid="stSidebar"] .stButton button span {
         color: #0d192b !important;
     }
+    [data-testid="stSidebar"] .stButton {
+        margin-top: 12px;
+    }
     [data-testid="stSidebar"] .stCode,
     [data-testid="stSidebar"] code {
-        color: #dce8f7;
-        background: #1b2c47;
+        color: #0d192b;
+        background: #e8eef7;
+        border: 0;
+        border-radius: 6px;
+        font-weight: 700;
+    }
+    [data-testid="stSidebar"] [data-testid="stCode"] {
+        background: #e8eef7;
+        border: 0;
     }
     [data-testid="stMetric"] {
         background: linear-gradient(135deg, #1a2e4d, #14243d);
@@ -109,6 +119,9 @@ st.markdown(
     [data-testid="stAlert"] svg {
         fill: #67e8d1;
     }
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"] {
+        color: #f8fafc !important;
+    }
     [data-testid="stExpander"] {
         border-color: #3a5275;
         background: #101d32;
@@ -128,6 +141,31 @@ st.markdown(
         text-transform: uppercase;
     }
     .muted { color: #93a4bd; }
+    .data-source {
+        background: #e8eef7;
+        border-radius: 6px;
+        color: #0d192b;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 4px;
+        padding: 8px 10px;
+    }
+    .status-card {
+        background: #172945;
+        border: 1px solid #42628c;
+        border-radius: 10px;
+        color: #f8fafc;
+        padding: 16px 18px;
+        margin: 10px 0;
+    }
+    .status-card strong {
+        color: #67e8d1;
+        font-size: 1rem;
+    }
+    .status-card p {
+        color: #d6e2f1;
+        margin: 6px 0 0;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -497,13 +535,40 @@ def platform_page() -> None:
         cols[3].metric("S3", "Not probed")
     st.subheader("Pipeline runs")
     if runs.empty:
-        st.info("No pipeline audit records are available.")
+        st.markdown(
+            """
+            <div class="status-card">
+                <strong>Pipeline audit is not populated</strong>
+                <p>
+                    The serving database is healthy and realtime vehicle data is
+                    available. Batch audit records are created when the incremental
+                    ingestion pipeline runs; no run has been loaded into this
+                    deployment yet.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else:
-        st.dataframe(runs, width="stretch", hide_index=True)
-    st.info(
-        "Kafka and Spark health are verified by Docker Compose and Spark UI. "
-        "S3 is intentionally not probed from the local dashboard; production "
-        "deployment should use an IAM role and private network access."
+        display_runs = runs.copy()
+        for column in ("started_at", "completed_at"):
+            if column in display_runs:
+                display_runs[column] = pd.to_datetime(
+                    display_runs[column], utc=True, errors="coerce"
+                ).dt.tz_convert("Pacific/Auckland").dt.strftime("%Y-%m-%d %H:%M:%S")
+        st.dataframe(display_runs, width="stretch", hide_index=True)
+    st.markdown(
+        """
+        <div class="status-card">
+            <strong>Data platform boundary</strong>
+            <p>
+                Kafka and Spark health are verified by Docker Compose and Spark UI.
+                S3 is not probed by the dashboard; a deployed environment should
+                use an IAM role and private network access.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
@@ -521,7 +586,10 @@ with st.sidebar:
     selected_page = st.radio("Navigate", list(pages))
     st.divider()
     st.caption("Data source")
-    st.code("PostgreSQL serving", language=None)
+    st.markdown(
+        '<div class="data-source">PostgreSQL serving</div>',
+        unsafe_allow_html=True,
+    )
     if st.button("Refresh data"):
         st.cache_data.clear()
         st.rerun()
