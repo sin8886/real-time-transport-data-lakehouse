@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -26,6 +27,17 @@ def main() -> None:
     args = parser.parse_args()
     if args.interval <= 0:
         parser.error("--interval must be positive")
+
+    api_key = os.getenv("AT_API_KEY", "").strip()
+    if not api_key or "你的" in api_key or "API Key" in api_key:
+        parser.error(
+            "AT_API_KEY must contain your real Auckland Transport API key, "
+            "not the example placeholder text."
+        )
+    try:
+        api_key.encode("latin-1")
+    except UnicodeEncodeError:
+        parser.error("AT_API_KEY must contain only ASCII characters.")
 
     fetcher = RealtimeFetcher()
     kafka_producer = create_kafka_producer()
