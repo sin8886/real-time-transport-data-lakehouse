@@ -33,18 +33,73 @@ st.markdown(
     """
     <style>
     [data-testid="stAppViewContainer"] {
-        background: #0b1220;
-        color: #e8eef7;
+        background: #08111f;
+        color: #f5f7fb;
     }
     [data-testid="stSidebar"] {
-        background: #111b2e;
-        border-right: 1px solid #263550;
+        background: #101d32;
+        border-right: 1px solid #334968;
+    }
+    [data-testid="stSidebar"] * {
+        color: #e8eef7;
+    }
+    [data-testid="stSidebar"] .stCaption {
+        color: #aebdd1;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+        color: #e8eef7;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label[data-checked="true"] {
+        color: #67e8d1;
+        font-weight: 700;
+    }
+    [data-testid="stSidebar"] .stButton button {
+        background: #e8eef7;
+        color: #0d192b;
+        border: 0;
+        font-weight: 700;
+    }
+    [data-testid="stSidebar"] .stButton button p,
+    [data-testid="stSidebar"] .stButton button span {
+        color: #0d192b !important;
+    }
+    [data-testid="stSidebar"] .stCode,
+    [data-testid="stSidebar"] code {
+        color: #dce8f7;
+        background: #1b2c47;
     }
     [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #16243c, #111b2e);
-        border: 1px solid #263b5d;
+        background: linear-gradient(135deg, #1a2e4d, #14243d);
+        border: 1px solid #46658f;
         border-radius: 14px;
         padding: 18px;
+    }
+    [data-testid="stMetricLabel"] p {
+        color: #b7c8dd !important;
+        font-weight: 600;
+    }
+    [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-weight: 800;
+    }
+    [data-testid="stMetricDelta"] {
+        color: #67e8d1 !important;
+    }
+    h1, h2, h3 {
+        color: #f8fafc !important;
+    }
+    .stMarkdown p, .stCaption, [data-testid="stCaptionContainer"] {
+        color: #bdcbe0;
+    }
+    [data-testid="stAlert"] p {
+        color: #f8fafc;
+    }
+    [data-testid="stDataFrame"] {
+        border: 1px solid #3a5275;
+        border-radius: 10px;
+    }
+    button[kind="secondary"] {
+        color: #e8eef7;
     }
     .eyebrow {
         color: #5eead4;
@@ -127,9 +182,10 @@ def overview_page() -> None:
     with left:
         st.subheader("What is live today?")
         st.info(
-            "The current v1.0 pipeline has a verified Kafka/Spark streaming path, "
-            "but it does not yet persist live vehicle events to a dashboard serving "
-            "table. This page therefore never presents synthetic values as live."
+            "The batch Gold snapshot and the live Kafka/Spark serving path are "
+            "separate products. Live vehicle observations appear only while the "
+            "producer and serving job are running; this page never presents "
+            "synthetic values as live."
         )
     with right:
         st.subheader("Latest pipeline run")
@@ -169,6 +225,9 @@ def route_page() -> None:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         height=620,
+        font={"color": "#e8eef7"},
+        xaxis={"gridcolor": "#304766", "zerolinecolor": "#46658f"},
+        yaxis={"gridcolor": "#304766", "zerolinecolor": "#46658f"},
     )
     st.plotly_chart(chart, width="stretch")
     st.dataframe(routes, width="stretch", hide_index=True)
@@ -210,14 +269,30 @@ def live_page() -> None:
     cols[0].metric("Active vehicles", f"{len(vehicles):,}")
     cols[1].metric("Routes represented", f"{vehicles.route_id.nunique():,}")
     cols[2].metric("Latest event", format_timestamp(vehicles.event_ts.max()))
+    st.caption(
+        "Showing real Auckland Transport observations received within the last "
+        "10 minutes. Refresh to fetch the latest serving snapshot."
+    )
+    map_vehicles = vehicles[
+        vehicles.latitude.between(-37.5, -36.5)
+        & vehicles.longitude.between(174.3, 175.2)
+    ].copy()
+    if map_vehicles.empty:
+        st.warning("No vehicles are currently inside the Auckland map bounds.")
     st.map(
-        vehicles.rename(columns={"latitude": "lat", "longitude": "lon"})[
+        map_vehicles.rename(columns={"latitude": "lat", "longitude": "lon"})[
             ["lat", "lon"]
         ].dropna(),
         latitude="lat",
         longitude="lon",
         zoom=10,
+        size=12,
     )
+    if len(map_vehicles) < len(vehicles):
+        st.caption(
+            f"{len(vehicles) - len(map_vehicles):,} observations were excluded "
+            "from the map because their coordinates were outside Auckland."
+        )
     st.dataframe(vehicles, width="stretch", hide_index=True)
 
 
