@@ -48,6 +48,8 @@ ruff format --check .
 - [Day 50 Final Acceptance](docs/DAY50_FINAL_ACCEPTANCE.md)
 - [Operations Guide](docs/OPERATIONS_GUIDE.md)
 - [Day 47 Clean-room Spark image](Dockerfile.spark)
+- [Dashboard](dashboard/app.py)
+- [Realtime operations](docs/OPERATIONS_GUIDE.md#8-按需运行实时-auckland-车辆)
 
 The v1.0 release is a local-first, reproducible portfolio MVP. It documents
 its operational limitations instead of claiming production-scale throughput,

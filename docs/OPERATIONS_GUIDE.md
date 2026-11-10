@@ -182,7 +182,75 @@ docker compose config >/dev/null
 S3 和 PostgreSQL integration tests 默认会 skip，因为它们需要额外的
 外部服务或环境变量。它们不属于本地核心演示的必需条件。
 
-## 7. 数据层说明
+## 7. 本地 Dashboard
+
+Dashboard 是 v1.0 数据平台之上的展示层。首次安装 Dashboard 依赖：
+
+```bash
+.venv/bin/python -m pip install -e ".[dashboard]"
+```
+
+确保 PostgreSQL 正在运行，并先把本地 Auckland Gold 快照加载到 Serving
+表：
+
+```bash
+POSTGRES_DB=transport_lakehouse \
+POSTGRES_USER=transport \
+POSTGRES_PASSWORD=transport_local_dev \
+POSTGRES_HOST=localhost \
+POSTGRES_PORT=5433 \
+.venv/bin/python scripts/load_gold_serving.py \
+  --provider at \
+  --service-date 2026-10-22
+```
+
+启动网页：
+
+```bash
+.venv/bin/streamlit run dashboard/app.py
+```
+
+然后打开 http://localhost:8501。网页展示真实的 Batch Gold 数据和
+Pipeline audit 状态；Live Vehicles 页面在实时 Producer 和 Spark Serving
+运行后展示真实车辆事件，没有实时数据时显示空状态，不会把 Day 47 的
+synthetic recovery 事件冒充成实时车辆。
+
+## 8. 按需运行实时 Auckland 车辆
+
+实时模式需要 AT API key。只在运行 Producer 时请求 Auckland 的
+GTFS-Realtime feed；停止 Producer 后不会继续请求。
+
+终端一：启动 Spark 到 PostgreSQL 的实时 Serving：
+
+```bash
+docker compose exec -T spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  /opt/transport-lakehouse/scripts/run_realtime_serving.py
+```
+
+终端二：设置 key 并按 30 秒轮询发布车辆事件：
+
+```bash
+export AT_API_KEY='只在本地终端设置，不要提交到 Git'
+.venv/bin/python scripts/publish_at_realtime.py --interval 30
+```
+
+然后刷新网页的 Live vehicles 页面。地图只显示最近 10 分钟内有真实
+事件的车辆；没有数据时显示空状态，不显示虚构车辆。
+
+停止实时分析：
+
+```text
+终端二：Ctrl+C
+终端一：Ctrl+C
+```
+
+实时 checkpoint 位于 `checkpoints/dashboard/realtime-vehicles/`，不要
+删除历史 checkpoint；需要全新测试时使用新的 `REALTIME_CHECKPOINT` 路径。
+
+## 9. 数据层说明
 
 | Layer | 内容 |
 |---|---|
@@ -191,7 +259,7 @@ S3 和 PostgreSQL integration tests 默认会 skip，因为它们需要额外的
 | Gold | route delay、vehicle activity、service reliability 等指标 |
 | PostgreSQL | 面向查询的 serving 层，不是主数据湖存储 |
 
-## 8. 重要边界
+## 10. 重要边界
 
 - 这是可复现的 portfolio MVP，不是生产级托管平台。
 - Benchmark 是本地测量，不代表生产 SLA。

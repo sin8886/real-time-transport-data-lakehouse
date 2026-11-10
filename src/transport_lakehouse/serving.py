@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from transport_lakehouse.database import get_connection
+from transport_lakehouse.processing.parse_static import parse_static_feed
+from transport_lakehouse.processing.silver_dimensions import build_silver_dimensions
 from transport_lakehouse.processing.snapshot_pipeline import SnapshotPipeline
+from transport_lakehouse.quality.data_quality import run_dimension_quality_checks
 
 
 UPSERT_ROUTES_SQL = """
@@ -84,10 +88,22 @@ def load_serving_dimensions(
     provider: str,
     ingest_date: str,
     pipeline: SnapshotPipeline | None = None,
+    source_dir: str | None = None,
 ) -> dict[str, int]:
-    """Load Silver routes and stops into PostgreSQL Serving v1."""
-    snapshot_pipeline = pipeline or SnapshotPipeline()
-    result = snapshot_pipeline.run(provider=provider, ingest_date=ingest_date)
+    """Load Silver routes and stops into PostgreSQL Serving v1.
+
+    When ``source_dir`` is supplied, use a local GTFS snapshot and avoid the
+    S3 download path used by the historical ingestion pipeline.
+    """
+    if source_dir is not None:
+        parsed_tables = parse_static_feed(Path(source_dir))
+        silver_tables = build_silver_dimensions(parsed_tables)
+        quality = run_dimension_quality_checks(silver_tables)
+        result = {"passed": quality["passed"], "silver_tables": silver_tables}
+    else:
+        snapshot_pipeline = pipeline or SnapshotPipeline()
+        result = snapshot_pipeline.run(provider=provider, ingest_date=ingest_date)
+
     if not result["passed"]:
         raise ValueError("Snapshot quality checks failed")
 
