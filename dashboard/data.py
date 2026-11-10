@@ -147,6 +147,21 @@ def load_active_vehicles() -> pd.DataFrame:
     )
 
 
+def load_serving_health() -> pd.DataFrame:
+    """Load serving freshness and row-count signals for the dashboard."""
+    return _query(
+        """
+        SELECT COUNT(*)::bigint AS vehicle_rows,
+               COUNT(*) FILTER (
+                   WHERE event_ts >= CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+               )::bigint AS fresh_vehicle_rows,
+               MAX(event_ts) AS latest_event_ts,
+               MAX(ingested_at) AS latest_ingested_at
+        FROM dashboard_active_vehicles
+        """
+    )
+
+
 def format_timestamp(value: Any) -> str:
     """Format database timestamps without inventing freshness."""
     if value is None or pd.isna(value):

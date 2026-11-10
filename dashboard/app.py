@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
@@ -19,6 +20,7 @@ from dashboard.data import (  # noqa: E402
     load_pipeline_runs,
     load_route_metrics,
     load_stop_metrics,
+    load_serving_health,
 )
 
 
@@ -153,6 +155,87 @@ def show_connection_error(error: Exception) -> None:
         st.code(str(error))
 
 
+def live_metrics(vehicles):
+    """Derive transparent, rule-based signals from current vehicle observations."""
+    speeds = vehicles["speed"].dropna()
+    moving = speeds[speeds > 2]
+    stopped = speeds[speeds <= 2]
+    congestion_score = round((len(stopped) / len(speeds)) * 100) if len(speeds) else None
+    status = (
+        "Elevated"
+        if congestion_score is not None and congestion_score >= 40
+        else "Moderate"
+        if congestion_score is not None and congestion_score >= 20
+        else "Moving normally"
+        if congestion_score is not None
+        else "Unavailable"
+    )
+    return {
+        "active_vehicles": len(vehicles),
+        "routes": vehicles["route_id"].replace("", None).dropna().nunique(),
+        "moving": len(moving),
+        "stopped": len(stopped),
+        "congestion_score": congestion_score,
+        "status": status,
+        "average_speed": speeds.mean() if len(speeds) else None,
+    }
+
+
+def route_live_summary(vehicles):
+    """Return route-level live activity without inventing delay observations."""
+    live = vehicles.copy()
+    live["route_id"] = live["route_id"].replace("", "Unassigned").fillna("Unassigned")
+    summary = (
+        live.groupby("route_id", as_index=False)
+        .agg(
+            active_vehicles=("vehicle_id", "count"),
+            average_observed_speed=("speed", "mean"),
+            latest_event=("event_ts", "max"),
+        )
+        .sort_values("active_vehicles", ascending=False)
+    )
+    return summary
+
+
+def speed_distribution(vehicles):
+    """Classify observed positions using a documented GTFS speed threshold."""
+    speeds = vehicles["speed"]
+    return pd.DataFrame(
+        {
+            "status": ["Moving", "Stopped / slow", "Unknown"],
+            "vehicles": [
+                int((speeds > 2).sum()),
+                int((speeds <= 2).sum()),
+                int(speeds.isna().sum()),
+            ],
+        }
+    )
+
+
+def render_live_map(vehicles) -> None:
+    map_vehicles = vehicles[
+        vehicles.latitude.between(-37.5, -36.5)
+        & vehicles.longitude.between(174.3, 175.2)
+    ].copy()
+    if map_vehicles.empty:
+        st.warning("No vehicles are currently inside the Auckland map bounds.")
+        return
+    st.map(
+        map_vehicles.rename(columns={"latitude": "lat", "longitude": "lon"})[
+            ["lat", "lon"]
+        ].dropna(),
+        latitude="lat",
+        longitude="lon",
+        zoom=10,
+        size=12,
+    )
+    if len(map_vehicles) < len(vehicles):
+        st.caption(
+            f"{len(vehicles) - len(map_vehicles):,} observations were excluded "
+            "from the map because their coordinates were outside Auckland."
+        )
+
+
 def overview_page() -> None:
     page_header(
         "Transport intelligence",
@@ -171,36 +254,93 @@ def overview_page() -> None:
         return
 
     row = daily.iloc[0]
+    try:
+        vehicles = load_active_vehicles()
+    except Exception:
+        vehicles = pd.DataFrame()
+    if vehicles.empty:
+        st.warning("Realtime serving is currently offline.")
+        live = {
+            "active_vehicles": 0,
+            "routes": 0,
+            "congestion_score": None,
+            "status": "Unavailable",
+        }
+    else:
+        live = live_metrics(vehicles)
     cols = st.columns(4)
-    cols[0].metric("Scheduled trips", f"{int(row.scheduled_trip_count):,}")
-    cols[1].metric("Routes analysed", f"{int(row.active_route_count):,}")
-    cols[2].metric("Stops covered", f"{int(row.active_stop_count):,}")
-    cols[3].metric("Snapshot date", str(row.service_date))
+    cols[0].metric("Active vehicles", f"{live['active_vehicles']:,}")
+    cols[1].metric("Live routes", f"{live['routes']:,}")
+    cols[2].metric(
+        "Congestion risk",
+        f"{live['congestion_score']}/100"
+        if live["congestion_score"] is not None
+        else "Unavailable",
+        help="Rule-based proxy: percentage of fresh observations with speed <= 2 m/s.",
+    )
+    cols[3].metric("Traffic state", live["status"])
 
     st.divider()
-    left, right = st.columns([1.25, 1])
+    left, right = st.columns([1.35, 1])
     with left:
-        st.subheader("What is live today?")
-        st.info(
-            "The batch Gold snapshot and the live Kafka/Spark serving path are "
-            "separate products. Live vehicle observations appear only while the "
-            "producer and serving job are running; this page never presents "
-            "synthetic values as live."
-        )
+        st.subheader("Auckland live traffic")
+        if vehicles.empty:
+            st.info("Start the realtime producer and Spark serving job to populate this view.")
+        else:
+            render_live_map(vehicles)
     with right:
-        st.subheader("Latest pipeline run")
+        st.subheader("Traffic status")
+        if vehicles.empty:
+            st.info("No current vehicle observations.")
+        else:
+            distribution = speed_distribution(vehicles)
+            chart = px.pie(
+                distribution,
+                names="status",
+                values="vehicles",
+                hole=0.58,
+                color="status",
+                color_discrete_map={
+                    "Moving": "#67e8d1",
+                    "Stopped / slow": "#f59e0b",
+                    "Unknown": "#64748b",
+                },
+            )
+            chart.update_layout(
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=300,
+                margin={"t": 20, "b": 20, "l": 10, "r": 10},
+                font={"color": "#e8eef7"},
+                showlegend=True,
+            )
+            st.plotly_chart(chart, width="stretch", config={"displayModeBar": False})
+        st.caption(
+            f"Static Gold snapshot: {row.service_date} · "
+            f"{int(row.scheduled_trip_count):,} scheduled trips · "
+            f"{int(row.active_stop_count):,} stops"
+        )
+    st.subheader("Latest pipeline run")
+    with st.container():
         if runs.empty:
             st.caption("No pipeline audit record is available.")
         else:
             run = runs.iloc[0]
-            st.metric("Status", str(run.status).upper())
-            st.caption(f"Completed: {format_timestamp(run.completed_at)}")
+            run_cols = st.columns(3)
+            run_cols[0].metric("Status", str(run.status).upper())
+            run_cols[1].metric("Records out", f"{int(run.records_out):,}")
+            run_cols[2].caption(f"Completed: {format_timestamp(run.completed_at)}")
+    st.caption(
+        "Traffic risk is an estimated operational proxy, not a delay measurement. "
+        "Trip Update delay windows are not currently persisted in the dashboard serving table."
+    )
 
 
 def route_page() -> None:
     page_header(
         "Route performance",
-        "Compare scheduled activity and stop coverage from the latest Gold snapshot.",
+        "Combine static Gold route activity with current observed vehicle movement.",
     )
     try:
         routes = get_routes()
@@ -210,6 +350,11 @@ def route_page() -> None:
     if routes.empty:
         st.warning("No route metrics are available.")
         return
+    try:
+        vehicles = load_active_vehicles()
+    except Exception:
+        vehicles = pd.DataFrame()
+    live_routes = route_live_summary(vehicles) if not vehicles.empty else None
     top = routes.head(20).sort_values("stop_event_count")
     chart = px.bar(
         top,
@@ -230,13 +375,21 @@ def route_page() -> None:
         yaxis={"gridcolor": "#304766", "zerolinecolor": "#46658f"},
     )
     st.plotly_chart(chart, width="stretch")
+    if live_routes is not None:
+        st.subheader("Current route activity")
+        st.dataframe(live_routes.head(30), width="stretch", hide_index=True)
+    st.info(
+        "Average delay and reliability rankings require persisted Trip Update "
+        "delay observations. The current serving table contains vehicle positions "
+        "only, so this page does not fabricate delay values."
+    )
     st.dataframe(routes, width="stretch", hide_index=True)
 
 
 def stops_page() -> None:
     page_header(
         "Stop activity",
-        "Identify the busiest stops in the latest Auckland service snapshot.",
+        "Identify the busiest stops and explain the current data boundary.",
     )
     try:
         stops = get_stops()
@@ -246,6 +399,11 @@ def stops_page() -> None:
     if stops.empty:
         st.warning("No stop metrics are available.")
         return
+    st.metric("Stops in static Gold", f"{len(stops):,}")
+    st.info(
+        "The ranking below is based on scheduled/static Gold stop events. "
+        "Realtime stop arrivals require Trip Updates to be persisted separately."
+    )
     st.dataframe(stops.head(50), width="stretch", hide_index=True)
 
 
@@ -270,46 +428,45 @@ def live_page() -> None:
     cols[1].metric("Routes represented", f"{vehicles.route_id.nunique():,}")
     cols[2].metric("Latest event", format_timestamp(vehicles.event_ts.max()))
     st.caption(
-        "Showing real Auckland Transport observations received within the last "
-        "10 minutes. Refresh to fetch the latest serving snapshot."
+        "Real Auckland Transport observations received within the last 10 minutes."
     )
-    map_vehicles = vehicles[
-        vehicles.latitude.between(-37.5, -36.5)
-        & vehicles.longitude.between(174.3, 175.2)
-    ].copy()
-    if map_vehicles.empty:
-        st.warning("No vehicles are currently inside the Auckland map bounds.")
-    st.map(
-        map_vehicles.rename(columns={"latitude": "lat", "longitude": "lon"})[
-            ["lat", "lon"]
-        ].dropna(),
-        latitude="lat",
-        longitude="lon",
-        zoom=10,
-        size=12,
-    )
-    if len(map_vehicles) < len(vehicles):
-        st.caption(
-            f"{len(vehicles) - len(map_vehicles):,} observations were excluded "
-            "from the map because their coordinates were outside Auckland."
-        )
+    render_live_map(vehicles)
+    st.subheader("Vehicle details")
     st.dataframe(vehicles, width="stretch", hide_index=True)
 
 
 def platform_page() -> None:
     page_header(
         "Platform health",
-        "Audit signals from the PostgreSQL serving layer.",
+        "Monitor data freshness, pipeline audit signals, and local platform boundaries.",
     )
     try:
         runs = get_runs()
     except Exception as error:
         show_connection_error(error)
         return
+    try:
+        health = load_serving_health()
+    except Exception as error:
+        show_connection_error(error)
+        return
+    if not health.empty:
+        row = health.iloc[0]
+        cols = st.columns(4)
+        cols[0].metric("PostgreSQL", "Healthy")
+        cols[1].metric("Fresh vehicles", f"{int(row.fresh_vehicle_rows):,}")
+        cols[2].metric("Latest event", format_timestamp(row.latest_event_ts))
+        cols[3].metric("S3", "Not probed")
+    st.subheader("Pipeline runs")
     if runs.empty:
         st.info("No pipeline audit records are available.")
-        return
-    st.dataframe(runs, width="stretch", hide_index=True)
+    else:
+        st.dataframe(runs, width="stretch", hide_index=True)
+    st.info(
+        "Kafka and Spark health are verified by Docker Compose and Spark UI. "
+        "S3 is intentionally not probed from the local dashboard; production "
+        "deployment should use an IAM role and private network access."
+    )
 
 
 pages = {

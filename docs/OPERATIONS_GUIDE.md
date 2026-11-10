@@ -247,8 +247,33 @@ export AT_API_KEY='只在本地终端设置，不要提交到 Git'
 终端一：Ctrl+C
 ```
 
-实时 checkpoint 位于 `checkpoints/dashboard/realtime-vehicles/`，不要
-删除历史 checkpoint；需要全新测试时使用新的 `REALTIME_CHECKPOINT` 路径。
+实时 checkpoint 位于 `checkpoints/dashboard/realtime-vehicles/`。如果 Kafka
+topic 被删除并重新创建，必须使用新的 `REALTIME_CHECKPOINT` 路径，避免旧
+offset 与新 topic 不一致：
+
+```bash
+CHECKPOINT="dashboard/realtime-vehicles-$(date +%Y%m%d-%H%M%S)"
+docker compose exec -T \
+  -e REALTIME_CHECKPOINT="/opt/transport-lakehouse-checkpoints/${CHECKPOINT}" \
+  spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 --deploy-mode client \
+  /opt/transport-lakehouse/scripts/run_realtime_serving.py
+```
+
+### Dashboard metric boundary
+
+The current dashboard serving table stores the latest vehicle position per
+vehicle. The Overview congestion score is a transparent proxy:
+
+```text
+score = 100 * fresh observations with speed <= 2 m/s / fresh observations with speed
+```
+
+It is an estimate based on current vehicle positions, not measured delay and
+not machine learning. Average delay, 5/15/60-minute delay trends, and realtime
+stop arrivals remain unavailable until Trip Updates are persisted into a
+dedicated serving table. Static route and stop rankings continue to use the
+verified Gold snapshot.
 
 ## 9. 数据层说明
 

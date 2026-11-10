@@ -1,5 +1,28 @@
 # Real-Time Transport Data Lakehouse
 
+## Urban Mobility Analytics Platform
+
+This repository is a local-first, reproducible urban mobility platform for
+Auckland Transport GTFS Static and GTFS-Realtime data. It combines a Spark
+batch lakehouse, Kafka/Spark Structured Streaming, PostgreSQL serving, and a
+Streamlit operations dashboard without pretending that unavailable delay data
+exists.
+
+The dashboard provides:
+
+- live vehicle count, route activity, map, freshness, and traffic state;
+- static Gold route and stop activity rankings;
+- a transparent congestion-risk proxy based on the share of fresh vehicle
+  observations moving at or below 2 m/s;
+- pipeline audit and serving freshness signals;
+- explicit data-boundary messages when Trip Update delay facts or historical
+  realtime windows are not persisted.
+
+The congestion score is an operational estimate in the range 0–100, not a
+machine-learning prediction or a substitute for measured Trip Update delay.
+The source and formula are shown in the Dashboard and documented in
+[docs/OPERATIONS_GUIDE.md](docs/OPERATIONS_GUIDE.md).
+
 A local-first transport data platform for combining GTFS Static reference data
 with GTFS Realtime events from Auckland Transport and Metlink.
 
@@ -50,10 +73,26 @@ ruff format --check .
 - [Day 47 Clean-room Spark image](Dockerfile.spark)
 - [Dashboard](dashboard/app.py)
 - [Realtime operations](docs/OPERATIONS_GUIDE.md#8-按需运行实时-auckland-车辆)
+- [AWS deployment preparation](docs/AWS_DEPLOYMENT.md)
+- [Architecture](docs/ARCHITECTURE.md)
 
 The v1.0 release is a local-first, reproducible portfolio MVP. It documents
 its operational limitations instead of claiming production-scale throughput,
 managed infrastructure, or end-to-end exactly-once delivery.
+
+## Dashboard quick start
+
+```bash
+docker compose up -d --wait
+.venv/bin/python scripts/load_gold_serving.py --provider at \
+  --service-date 2026-10-22 --ingest-date 2026-10-22
+.venv/bin/streamlit run dashboard/app.py \
+  --server.address 0.0.0.0 --server.port 8501
+```
+
+For live Auckland vehicles, run the Spark serving job and the authenticated
+producer as described in the [Operations Guide](docs/OPERATIONS_GUIDE.md).
+API keys remain local environment variables and must never be committed.
 
 ### Incremental Static Batch (Day 20)
 
