@@ -6,6 +6,7 @@ import os
 from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import psycopg
@@ -25,6 +26,7 @@ def _connection() -> psycopg.Connection:
         password=password,
         host=host,
         port=port,
+        connect_timeout=5,
         row_factory=dict_row,
     )
 
@@ -163,9 +165,15 @@ def load_serving_health() -> pd.DataFrame:
 
 
 def format_timestamp(value: Any) -> str:
-    """Format database timestamps without inventing freshness."""
+    """Format UTC database timestamps in Auckland local time."""
     if value is None or pd.isna(value):
         return "Not available"
     if isinstance(value, (datetime, date)):
-        return value.isoformat(sep=" ", timespec="seconds")
+        if isinstance(value, datetime):
+            timestamp = value
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=ZoneInfo("UTC"))
+            timestamp = timestamp.astimezone(ZoneInfo("Pacific/Auckland"))
+            return timestamp.strftime("%Y-%m-%d %H:%M:%S NZST/NZDT")
+        return value.isoformat()
     return str(value)

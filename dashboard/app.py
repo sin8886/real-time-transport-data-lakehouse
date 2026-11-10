@@ -197,6 +197,18 @@ def route_live_summary(vehicles):
     return summary
 
 
+def localize_timestamps(frame: pd.DataFrame) -> pd.DataFrame:
+    """Convert displayed database timestamps to Auckland local time."""
+    localized = frame.copy()
+    for column in ("event_ts", "ingested_at", "latest_event"):
+        if column in localized:
+            timestamps = pd.to_datetime(localized[column], utc=True, errors="coerce")
+            localized[column] = timestamps.dt.tz_convert(
+                "Pacific/Auckland"
+            ).dt.strftime("%Y-%m-%d %H:%M:%S")
+    return localized
+
+
 def speed_distribution(vehicles):
     """Classify observed positions using a documented GTFS speed threshold."""
     speeds = vehicles["speed"]
@@ -220,10 +232,14 @@ def render_live_map(vehicles) -> None:
     if map_vehicles.empty:
         st.warning("No vehicles are currently inside the Auckland map bounds.")
         return
+    map_vehicles = map_vehicles.dropna(subset=["latitude", "longitude"])
+    if len(map_vehicles) > 600:
+        map_vehicles = map_vehicles.head(600)
+        st.caption("Map is capped at the 600 most recent vehicles for browser stability.")
     st.map(
         map_vehicles.rename(columns={"latitude": "lat", "longitude": "lon"})[
             ["lat", "lon"]
-        ].dropna(),
+        ],
         latitude="lat",
         longitude="lon",
         zoom=10,
@@ -377,7 +393,11 @@ def route_page() -> None:
     st.plotly_chart(chart, width="stretch")
     if live_routes is not None:
         st.subheader("Current route activity")
-        st.dataframe(live_routes.head(30), width="stretch", hide_index=True)
+        st.dataframe(
+            localize_timestamps(live_routes.head(30)),
+            width="stretch",
+            hide_index=True,
+        )
     st.info(
         "Average delay and reliability rankings require persisted Trip Update "
         "delay observations. The current serving table contains vehicle positions "
@@ -432,7 +452,7 @@ def live_page() -> None:
     )
     render_live_map(vehicles)
     st.subheader("Vehicle details")
-    st.dataframe(vehicles, width="stretch", hide_index=True)
+    st.dataframe(localize_timestamps(vehicles), width="stretch", hide_index=True)
 
 
 def platform_page() -> None:
