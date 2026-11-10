@@ -37,6 +37,7 @@ st.markdown(
     [data-testid="stAppViewContainer"] {
         background: #08111f;
         color: #f5f7fb;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
     }
     [data-testid="stSidebar"] {
         background: #101d32;
@@ -95,6 +96,22 @@ st.markdown(
     }
     [data-testid="stAlert"] p {
         color: #f8fafc;
+    }
+    [data-testid="stAlert"] {
+        background: #172945;
+        border: 1px solid #42628c;
+        color: #f8fafc;
+    }
+    [data-testid="stAlert"][data-baseweb="notification"] p,
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"] p {
+        color: #f8fafc !important;
+    }
+    [data-testid="stAlert"] svg {
+        fill: #67e8d1;
+    }
+    [data-testid="stExpander"] {
+        border-color: #3a5275;
+        background: #101d32;
     }
     [data-testid="stDataFrame"] {
         border: 1px solid #3a5275;
@@ -329,6 +346,7 @@ def overview_page() -> None:
                 height=300,
                 margin={"t": 20, "b": 20, "l": 10, "r": 10},
                 font={"color": "#e8eef7"},
+                legend={"font": {"color": "#e8eef7"}},
                 showlegend=True,
             )
             st.plotly_chart(chart, width="stretch", config={"displayModeBar": False})
