@@ -237,6 +237,10 @@ export AT_API_KEY='只在本地终端设置，不要提交到 Git'
 .venv/bin/python scripts/publish_at_realtime.py --interval 30
 ```
 
+The publisher sends both vehicle positions and canonical Trip Update events.
+Route delay windows appear after Trip Update events have been received and
+processed by the Spark serving job.
+
 然后刷新网页的 Live vehicles 页面。地图只显示最近 10 分钟内有真实
 事件的车辆；没有数据时显示空状态，不显示虚构车辆。
 
@@ -270,10 +274,16 @@ score = 100 * fresh observations with speed <= 2 m/s / fresh observations with s
 ```
 
 It is an estimate based on current vehicle positions, not measured delay and
-not machine learning. Average delay, 5/15/60-minute delay trends, and realtime
-stop arrivals remain unavailable until Trip Updates are persisted into a
-dedicated serving table. Static route and stop rankings continue to use the
-verified Gold snapshot.
+not machine learning. The realtime serving job also consumes
+`transport.trip_updates.raw` and persists five-minute route windows to
+`dashboard_route_delay_trends`. The Route Performance page renders those
+observed windows when data is available; an empty result means no Trip Update
+events have reached serving yet. Realtime stop arrivals remain unavailable.
+Static route and stop rankings continue to use the verified Gold snapshot.
+
+The Platform Health page performs a bounded, read-only S3 object listing when
+the configured AWS identity is available. S3 remains the private lakehouse
+storage layer; PostgreSQL remains the dashboard's vehicle-detail query source.
 
 ## 9. 数据层说明
 

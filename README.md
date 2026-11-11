@@ -80,6 +80,35 @@ The v1.0 release is a local-first, reproducible portfolio MVP. It documents
 its operational limitations instead of claiming production-scale throughput,
 managed infrastructure, or end-to-end exactly-once delivery.
 
+## Public demo
+
+The optional AWS demo runs the same Docker-based Kafka, Spark, and PostgreSQL
+stack on an on-demand EC2 instance and exposes only the Streamlit dashboard
+through Nginx on HTTP port 80. The demo is intentionally started only when
+needed; the public IP can change after the instance is stopped unless an
+Elastic IP is attached.
+
+The dashboard reads live vehicle serving data from PostgreSQL. It also performs
+a read-only S3 lake health probe when AWS credentials or an EC2 IAM role are
+available. S3 remains private and is not used as the dashboard's vehicle
+detail query source. The Platform Health page reports the bucket and a bounded
+object listing without exposing credentials.
+
+To run the public demo, follow [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md).
+The authenticated Auckland Transport producer must be running for new vehicle
+events; stopping the producer stops fresh realtime updates while the dashboard
+itself may remain reachable.
+
+## Realtime delay coverage
+
+Trip Update events are parsed from GTFS-Realtime and the Spark serving job
+persists five-minute route delay windows in
+`dashboard_route_delay_trends`. Route Performance renders the observed average
+delay trend when those events are available. An empty chart is an honest
+indication that no Trip Update events have reached the serving layer; vehicle
+speed is not presented as delay. This is an observed operational trend, not a
+forecast or a complete historical reliability model.
+
 ## Dashboard quick start
 
 ```bash

@@ -18,9 +18,11 @@ from dashboard.data import (  # noqa: E402
     load_overview,
     load_active_vehicles,
     load_pipeline_runs,
+    load_route_delay_trends,
     load_route_metrics,
     load_stop_metrics,
     load_serving_health,
+    load_s3_health,
 )
 
 
@@ -190,6 +192,11 @@ def get_stops():
 @st.cache_data(ttl=30, show_spinner=False)
 def get_runs():
     return load_pipeline_runs()
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def get_delay_trends(window_minutes: int = 60):
+    return load_route_delay_trends(window_minutes=window_minutes)
 
 
 def page_header(title: str, subtitle: str) -> None:
@@ -405,7 +412,8 @@ def overview_page() -> None:
             run_cols[2].caption(f"Completed: {format_timestamp(run.completed_at)}")
     st.caption(
         "Traffic risk is an estimated operational proxy, not a delay measurement. "
-        "Trip Update delay windows are not currently persisted in the dashboard serving table."
+        "Observed Trip Update delay windows appear on Route Performance when "
+        "the realtime feed provides them."
     )
 
 
@@ -454,11 +462,42 @@ def route_page() -> None:
             width="stretch",
             hide_index=True,
         )
-    st.info(
-        "Average delay and reliability rankings require persisted Trip Update "
-        "delay observations. The current serving table contains vehicle positions "
-        "only, so this page does not fabricate delay values."
-    )
+    try:
+        delays = get_delay_trends()
+    except Exception:
+        delays = pd.DataFrame()
+    st.subheader("Observed Trip Update delay trend")
+    if delays.empty:
+        st.info(
+            "No Trip Update delay windows are available yet. The chart will appear "
+            "after the Trip Update producer and realtime serving job receive data."
+        )
+    else:
+        delays["window_start"] = pd.to_datetime(
+            delays["window_start"], utc=True, errors="coerce"
+        ).dt.tz_convert("Pacific/Auckland")
+        trend = (
+            delays.groupby("window_start", as_index=False)["avg_delay_seconds"]
+            .mean()
+            .sort_values("window_start")
+        )
+        chart = px.line(
+            trend,
+            x="window_start",
+            y="avg_delay_seconds",
+            markers=True,
+            labels={
+                "window_start": "Window start",
+                "avg_delay_seconds": "Average delay (seconds)",
+            },
+        )
+        chart.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font={"color": "#e8eef7"},
+        )
+        st.plotly_chart(chart, width="stretch", config={"displayModeBar": False})
     st.dataframe(routes, width="stretch", hide_index=True)
 
 
@@ -532,7 +571,15 @@ def platform_page() -> None:
         cols[0].metric("PostgreSQL", "Healthy")
         cols[1].metric("Fresh vehicles", f"{int(row.fresh_vehicle_rows):,}")
         cols[2].metric("Latest event", format_timestamp(row.latest_event_ts))
-        cols[3].metric("S3", "Not probed")
+        s3 = load_s3_health()
+        cols[3].metric("S3", s3["status"])
+        st.caption(
+            f"S3 lake: `{s3['bucket']}` · "
+            f"{s3['object_count'] if s3['object_count'] is not None else 'n/a'} "
+            "objects observed in the read-only probe."
+        )
+        if s3["error"]:
+            st.caption(f"S3 probe: {s3['error']}")
     st.subheader("Pipeline runs")
     if runs.empty:
         st.markdown(
@@ -563,8 +610,8 @@ def platform_page() -> None:
             <strong>Data platform boundary</strong>
             <p>
                 Kafka and Spark health are verified by Docker Compose and Spark UI.
-                S3 is not probed by the dashboard; a deployed environment should
-                use an IAM role and private network access.
+                S3 is probed read-only when an AWS IAM role or local AWS profile is
+                available; PostgreSQL remains the dashboard serving source.
             </p>
         </div>
         """,

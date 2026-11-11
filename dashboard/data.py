@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import psycopg
+import boto3
 from psycopg.rows import dict_row
 
 
@@ -162,6 +163,56 @@ def load_serving_health() -> pd.DataFrame:
         FROM dashboard_active_vehicles
         """
     )
+
+
+def load_route_delay_trends(
+    provider: str = "at",
+    window_minutes: int = 60,
+) -> pd.DataFrame:
+    """Load persisted, observed Trip Update delay windows."""
+    if window_minutes not in {5, 15, 60}:
+        raise ValueError("window_minutes must be one of 5, 15, or 60")
+    return _query(
+        """
+        SELECT window_start, window_end, route_id, avg_delay_seconds, event_count
+        FROM dashboard_route_delay_trends
+        WHERE provider = %s
+          AND window_start >= CURRENT_TIMESTAMP - make_interval(mins => %s)
+        ORDER BY window_start, route_id
+        """,
+        (provider, window_minutes),
+    )
+
+
+def load_s3_health() -> dict[str, Any]:
+    """Read-only S3 lake health probe using the configured AWS identity."""
+    bucket = os.getenv("S3_BUCKET_NAME", "sin8886-transport-lakehouse")
+    region = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
+    try:
+        client = boto3.client("s3", region_name=region)
+        response = client.list_objects_v2(Bucket=bucket, MaxKeys=1000)
+        objects = response.get("Contents", [])
+        latest = max((item["LastModified"] for item in objects), default=None)
+        return {
+            "status": "Healthy",
+            "bucket": bucket,
+            "object_count": len(objects),
+            "latest_modified": latest,
+            "error": None,
+        }
+    except Exception as error:
+        status = (
+            "Not configured"
+            if "credentials" in str(error).lower()
+            else "Unavailable"
+        )
+        return {
+            "status": status,
+            "bucket": bucket,
+            "object_count": None,
+            "latest_modified": None,
+            "error": str(error),
+        }
 
 
 def format_timestamp(value: Any) -> str:

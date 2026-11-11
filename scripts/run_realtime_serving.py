@@ -11,7 +11,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from pyspark.sql import SparkSession  # noqa: E402
-from pyspark.sql.functions import col, from_json  # noqa: E402
+from pyspark.sql.functions import (  # noqa: E402
+    avg,
+    col,
+    count,
+    from_json,
+    to_timestamp,
+    window,
+)
 from pyspark.sql.types import (  # noqa: E402
     BooleanType,
     DoubleType,
@@ -44,6 +51,16 @@ VEHICLE_SCHEMA = StructType(
         StructField("speed", DoubleType()),
         StructField("bearing", DoubleType()),
         StructField("is_deleted", BooleanType()),
+    ]
+)
+
+TRIP_UPDATE_SCHEMA = StructType(
+    [
+        StructField("event_type", StringType()),
+        StructField("source_provider", StringType()),
+        StructField("event_ts", StringType()),
+        StructField("route_id", StringType()),
+        StructField("delay_seconds", DoubleType()),
     ]
 )
 
@@ -110,6 +127,40 @@ def _write_batch(batch: Any, batch_id: int) -> None:
     print(f"Persisted {len(values)} vehicles in batch {batch_id}", flush=True)
 
 
+def _write_delay_batch(batch: Any, batch_id: int) -> None:
+    rows = batch.collect()
+    values = [
+        (
+            row.window_start,
+            row.window_end,
+            row.source_provider,
+            row.route_id,
+            row.avg_delay_seconds,
+            row.event_count,
+        )
+        for row in rows
+        if row.source_provider and row.route_id and row.window_start
+    ]
+    if not values:
+        return
+    sql = """
+        INSERT INTO dashboard_route_delay_trends (
+            window_start, window_end, provider, route_id,
+            avg_delay_seconds, event_count
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (window_start, window_end, provider, route_id)
+        DO UPDATE SET
+            avg_delay_seconds = EXCLUDED.avg_delay_seconds,
+            event_count = EXCLUDED.event_count
+    """
+    with _connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.executemany(sql, values)
+        connection.commit()
+    print(f"Persisted {len(values)} delay windows in batch {batch_id}", flush=True)
+
+
 def main() -> None:
     _ensure_schema()
     spark = (
@@ -150,7 +201,67 @@ def main() -> None:
         .trigger(processingTime="10 seconds")
         .start()
     )
+    trip_stream = select_message_columns(
+        read_kafka_stream(
+            spark,
+            bootstrap_servers=os.getenv(
+                "KAFKA_BOOTSTRAP_SERVERS", DEFAULT_BOOTSTRAP_SERVERS
+            ),
+            topics=("transport.trip_updates.raw",),
+            starting_offsets="latest",
+        )
+    )
+    trip_events = (
+        trip_stream.withColumn(
+            "event",
+            from_json(col("message_value"), TRIP_UPDATE_SCHEMA),
+        )
+        .select("event.*")
+        .filter(
+            (col("event_type") == "trip_update")
+            & col("source_provider").isNotNull()
+            & col("route_id").isNotNull()
+            & col("event_ts").isNotNull()
+            & col("delay_seconds").isNotNull()
+        )
+        .withColumn("event_ts", to_timestamp("event_ts"))
+    )
+    delay_windows = (
+        trip_events.withWatermark("event_ts", "5 minutes")
+        .groupBy(window("event_ts", "5 minutes"), "source_provider", "route_id")
+        .agg(
+            avg("delay_seconds").alias("avg_delay_seconds"),
+            count("*").alias("event_count"),
+        )
+        .select(
+            col("window.start").alias("window_start"),
+            col("window.end").alias("window_end"),
+            "source_provider",
+            "route_id",
+            "avg_delay_seconds",
+            "event_count",
+        )
+    )
+    delay_query = (
+        delay_windows.writeStream.foreachBatch(_write_delay_batch)
+        .outputMode("update")
+        .option(
+            "checkpointLocation",
+            os.getenv(
+                "REALTIME_DELAY_CHECKPOINT",
+                os.getenv(
+                    "REALTIME_CHECKPOINT",
+                    "/opt/transport-lakehouse-checkpoints/dashboard/"
+                    "realtime-vehicles",
+                )
+                + "-delays",
+            ),
+        )
+        .trigger(processingTime="10 seconds")
+        .start()
+    )
     query.awaitTermination()
+    delay_query.awaitTermination()
 
 
 if __name__ == "__main__":

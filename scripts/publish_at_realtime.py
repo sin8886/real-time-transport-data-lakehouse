@@ -1,4 +1,4 @@
-"""Poll Auckland GTFS-Realtime and publish vehicle events to Kafka."""
+"""Poll Auckland GTFS-Realtime and publish vehicle and trip-update events."""
 
 from __future__ import annotations
 
@@ -15,6 +15,9 @@ from transport_lakehouse.ingestion.realtime_fetcher import RealtimeFetcher  # no
 from transport_lakehouse.streaming.vehicle_position_producer import (  # noqa: E402
     VehiclePositionProducer,
     create_kafka_producer,
+)
+from transport_lakehouse.streaming.trip_update_producer import (  # noqa: E402
+    TripUpdateProducer,
 )
 
 
@@ -41,13 +44,19 @@ def main() -> None:
 
     fetcher = RealtimeFetcher()
     kafka_producer = create_kafka_producer()
-    producer = VehiclePositionProducer(kafka_producer)
+    vehicle_producer = VehiclePositionProducer(kafka_producer)
+    trip_update_producer = TripUpdateProducer(kafka_producer)
 
     try:
         while True:
             events = fetcher.fetch(response_format="json")
-            published = producer.publish(events)
-            print(f"Published {published} Auckland vehicle events.", flush=True)
+            vehicles = vehicle_producer.publish(events)
+            trip_updates = trip_update_producer.publish(events)
+            print(
+                f"Published {vehicles} vehicle events and "
+                f"{trip_updates} Trip Update events.",
+                flush=True,
+            )
             if args.once:
                 return
             time.sleep(args.interval)

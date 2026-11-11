@@ -121,6 +121,13 @@ def test_build_trip_update_key_prefers_stop_sequence():
     assert build_trip_update_key(event) == b"AT:trip-123:seq:2"
 
 
+def test_cancelled_trip_update_can_omit_stop_context():
+    event = make_trip_event(stop_id=None, stop_sequence=None)
+    event["trip_schedule_relationship"] = "CANCELED"
+
+    assert build_trip_update_key(event) == b"AT:trip-123:trip:canceled"
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [

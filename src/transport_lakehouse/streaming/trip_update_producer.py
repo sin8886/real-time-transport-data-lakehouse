@@ -30,7 +30,10 @@ def serialize_trip_update(event: Mapping[str, Any]) -> bytes:
     if stop_sequence is not None:
         if isinstance(stop_sequence, bool) or not isinstance(stop_sequence, int):
             raise ValueError("stop_sequence must be an integer or None")
-    elif not isinstance(stop_id, str) or not stop_id:
+    elif (
+        event.get("trip_schedule_relationship") != "CANCELED"
+        and (not isinstance(stop_id, str) or not stop_id)
+    ):
         raise ValueError(
             "trip_update requires stop_sequence or a non-empty stop_id"
         )
@@ -52,6 +55,8 @@ def build_trip_update_key(event: Mapping[str, Any]) -> bytes:
 
     if stop_sequence is not None:
         stop_context = f"seq:{stop_sequence}"
+    elif event.get("trip_schedule_relationship") == "CANCELED":
+        stop_context = "trip:canceled"
     else:
         stop_context = f"stop:{event['stop_id']}"
 
