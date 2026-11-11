@@ -99,6 +99,23 @@ The authenticated Auckland Transport producer must be running for new vehicle
 events; stopping the producer stops fresh realtime updates while the dashboard
 itself may remain reachable.
 
+## Dashboard preview
+
+The dashboard combines live vehicle serving data, static Gold metrics, observed
+Trip Update delay windows, and platform health signals.
+
+### Overview
+
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
+
+### Route performance
+
+![Route Performance](docs/screenshots/dashboard-route-performance.png)
+
+### Platform health
+
+![Platform Health](docs/screenshots/dashboard-platform-health.png)
+
 ## Realtime delay coverage
 
 Trip Update events are parsed from GTFS-Realtime and the Spark serving job
