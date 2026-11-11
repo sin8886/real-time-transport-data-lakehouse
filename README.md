@@ -73,10 +73,10 @@ ruff format --check .
 - [Day 47 Clean-room Spark image](Dockerfile.spark)
 - [Dashboard](dashboard/app.py)
 - [Realtime operations](docs/OPERATIONS_GUIDE.md#8-按需运行实时-auckland-车辆)
-- [AWS deployment preparation](docs/AWS_DEPLOYMENT.md)
+- [AWS deployment and operations](docs/AWS_DEPLOYMENT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 
-The v1.0 release is a local-first, reproducible portfolio MVP. It documents
+The v1.0.3 release is a local-first, reproducible portfolio MVP. It documents
 its operational limitations instead of claiming production-scale throughput,
 managed infrastructure, or end-to-end exactly-once delivery.
 

@@ -1,16 +1,30 @@
-# AWS deployment preparation
+# AWS deployment and operations
 
 ## Current status
 
-The project has not created or deployed an EC2 instance from this repository.
-Local Docker is the default development and demonstration environment, so
-there is no EC2 compute charge while the local platform is running.
+An on-demand EC2 demonstration deployment has been completed for the portfolio
+environment. The deployment is not always running; verify the instance state
+and current public IP before each demonstration.
+
+| Item | Current demonstration configuration |
+|---|---|
+| Region | `ap-southeast-2` |
+| Instance | `i-019630fd6c36b3e84` |
+| Instance type | `c7i-flex.large` |
+| Application | Docker Compose, Spark serving, Streamlit, Nginx |
+| Public entry point | HTTP port 80 through Nginx |
+| Domain / HTTPS | Not configured |
+
+The last known public endpoint was `http://3.107.2.91`; it is not permanent.
+Stopping and starting the instance can assign a different public IP because an
+Elastic IP is not attached. The local Docker environment remains the default
+reproducible development environment.
 
 An always-on public demo requires a continuously running host. The recommended
 first deployment is a single private-by-default EC2 host running Docker Compose:
 
 ```text
-Internet -> HTTPS reverse proxy -> Streamlit
+Internet -> HTTP reverse proxy -> Streamlit
                           |
                     Kafka / Spark / PostgreSQL
                           |
@@ -38,8 +52,10 @@ the public internet.
 6. Put Caddy or Nginx in front of Streamlit and issue an HTTPS certificate for
    a DNS name. Streamlit and internal services remain bound to localhost or the
    private Docker network.
-7. Verify the dashboard, Kafka-to-Spark-to-PostgreSQL freshness, and S3 access
-   from the instance before sharing the URL.
+7. Verify the dashboard, Kafka-to-Spark-to-PostgreSQL freshness, and the
+   read-only S3 probe from the instance before sharing the URL. The S3 probe
+   reports `Not configured` when no instance IAM role or AWS profile is
+   available; that is an explicit configuration status, not fabricated health.
 8. Stop the instance when the demo is finished. Review EBS and public IPv4
    resources separately because stopping compute does not necessarily remove
    all charges.
@@ -52,5 +68,27 @@ the public internet.
 | On-demand EC2 | Only while EC2/jobs run | During deployment | EC2, EBS, IPv4, S3 |
 | Always-on EC2 | Continuous | Yes | Continuous EC2 plus storage/network |
 
-This document is an implementation runbook, not evidence that AWS deployment
-has already been completed.
+The deployment is suitable for an on-demand portfolio demonstration, not a
+production availability claim. PostgreSQL, Kafka, Spark, and their management
+ports remain private. The current public proxy is HTTP only because no domain
+or TLS certificate has been configured.
+
+## Existing demonstration controls
+
+The EC2 host uses systemd services:
+
+```bash
+sudo systemctl status transport-compose.service
+sudo systemctl status transport-spark-serving.service
+sudo systemctl status transport-dashboard.service
+```
+
+The authenticated producer is started separately and must not store the API
+key in Git, a Docker image, or a committed systemd unit. Stop compute charges
+after a demonstration with:
+
+```bash
+aws ec2 stop-instances \
+  --region ap-southeast-2 \
+  --instance-ids i-019630fd6c36b3e84
+```

@@ -1,4 +1,4 @@
-# Day 50 - Final Acceptance and v1.0 Release
+# Day 50 - Final Acceptance and v1.0.3 Portfolio Baseline
 
 ## Final acceptance checklist
 
@@ -55,7 +55,7 @@ checkpoint directory before release.
 
 ## Release boundary
 
-The v1.0 release is a reproducible portfolio MVP. It does not claim:
+The v1.0.3 release is a reproducible portfolio MVP. It does not claim:
 
 - production-scale throughput or availability;
 - managed Kafka, Spark, or S3 operations;
@@ -72,7 +72,7 @@ git add .
 git commit -m "Complete Day 48-50 final project release" \
   -m "Add portfolio evidence, interview material, and final acceptance documentation." \
   -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-git tag -a v1.0.0 -m "Real-Time Transport Data Lakehouse v1.0.0"
+git tag -a v1.1.0 -m "Real-Time Transport Data Lakehouse v1.1.0"
 git push origin main
-git push origin v1.0.0
+git push origin v1.1.0
 ```

@@ -69,7 +69,7 @@ docker compose down
 当前批处理示例使用 Auckland GTFS Static 数据和固定服务日期：
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_gold_batch.py
+.venv/bin/python scripts/run_gold_batch.py
 ```
 
 输出目录：
@@ -184,7 +184,7 @@ S3 和 PostgreSQL integration tests 默认会 skip，因为它们需要额外的
 
 ## 7. 本地 Dashboard
 
-Dashboard 是 v1.0 数据平台之上的展示层。首次安装 Dashboard 依赖：
+Dashboard 是 v1.0.3 数据平台之上的展示层。首次安装 Dashboard 依赖：
 
 ```bash
 .venv/bin/python -m pip install -e ".[dashboard]"
