@@ -23,8 +23,7 @@ def build_route_delay_gold(
 
     if window_duration not in SUPPORTED_WINDOW_DURATIONS:
         raise ValueError(
-            "window_duration must be one of: "
-            + ", ".join(SUPPORTED_WINDOW_DURATIONS)
+            "window_duration must be one of: " + ", ".join(SUPPORTED_WINDOW_DURATIONS)
         )
 
     if not watermark_delay.strip():
@@ -93,8 +92,7 @@ def build_vehicle_activity_gold(
 
     if window_duration not in SUPPORTED_WINDOW_DURATIONS:
         raise ValueError(
-            "window_duration must be one of: "
-            + ", ".join(SUPPORTED_WINDOW_DURATIONS)
+            "window_duration must be one of: " + ", ".join(SUPPORTED_WINDOW_DURATIONS)
         )
 
     if not watermark_delay.strip():
@@ -104,9 +102,7 @@ def build_vehicle_activity_gold(
         raise ValueError("low_speed_threshold cannot be negative.")
 
     required_columns = {"vehicle_id", "route_id", "event_ts", "speed"}
-    missing_columns = required_columns.difference(
-        vehicle_position_stream.columns
-    )
+    missing_columns = required_columns.difference(vehicle_position_stream.columns)
     if missing_columns:
         raise ValueError(
             "vehicle_position_stream is missing required columns: "
@@ -121,13 +117,11 @@ def build_vehicle_activity_gold(
         & col("event_ts").isNotNull()
     )
 
-    watermarked_events = (
-        valid_events
-        .withWatermark("event_ts", watermark_delay)
-        .withColumn(
-            "window",
-            window(col("event_ts"), window_duration),
-        )
+    watermarked_events = valid_events.withWatermark(
+        "event_ts", watermark_delay
+    ).withColumn(
+        "window",
+        window(col("event_ts"), window_duration),
     )
 
     deduplication_keys = ["window", "route_id", "vehicle_id"]
@@ -137,9 +131,7 @@ def build_vehicle_activity_gold(
             deduplication_keys
         )
     else:
-        unique_vehicles = watermarked_events.dropDuplicates(
-            deduplication_keys
-        )
+        unique_vehicles = watermarked_events.dropDuplicates(deduplication_keys)
 
     return (
         unique_vehicles.groupBy(

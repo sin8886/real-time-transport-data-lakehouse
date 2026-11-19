@@ -74,7 +74,9 @@ def test_validate_result_rejects_row_count_and_schema_mismatch() -> None:
                             {
                                 "name": "route_id",
                                 "dataType": type(
-                                    "TypeStub", (), {"simpleString": lambda self: "string"}
+                                    "TypeStub",
+                                    (),
+                                    {"simpleString": lambda self: "string"},
                                 )(),
                                 "nullable": False,
                             },
@@ -152,6 +154,4 @@ def test_result_schema_is_json_serializable() -> None:
 
     payload = schema_summary(type("DataFrame", (), {"schema": Schema()})())
     json.dumps(payload)
-    assert payload == [
-        {"name": "route_id", "type": "string", "nullable": False}
-    ]
+    assert payload == [{"name": "route_id", "type": "string", "nullable": False}]

@@ -120,12 +120,7 @@ def test_route_delay_gold_preserves_streaming_input(
     spark: SparkSession,
     duration: str,
 ) -> None:
-    source = (
-        spark.readStream
-        .format("rate")
-        .option("rowsPerSecond", 1)
-        .load()
-    )
+    source = spark.readStream.format("rate").option("rowsPerSecond", 1).load()
 
     trip_updates = source.selectExpr(
         "'route-001' AS route_id",
@@ -144,6 +139,8 @@ def test_route_delay_gold_preserves_streaming_input(
         "avg_delay_seconds",
         "event_count",
     ]
+
+
 @pytest.fixture
 def vehicle_positions(spark: SparkSession):
     rows = [
@@ -181,12 +178,8 @@ def test_vehicle_activity_gold_aggregates_by_route_and_window(
 
     rows = result.collect()
 
-    route_1 = next(
-        row for row in rows if row["route_id"] == "route-001"
-    )
-    route_2 = next(
-        row for row in rows if row["route_id"] == "route-002"
-    )
+    route_1 = next(row for row in rows if row["route_id"] == "route-001")
+    route_2 = next(row for row in rows if row["route_id"] == "route-002")
 
     assert route_1["active_vehicle_count"] == 3
     assert route_1["avg_speed"] == pytest.approx(6.0)
@@ -246,12 +239,7 @@ def test_vehicle_activity_gold_preserves_streaming_input(
     spark: SparkSession,
     duration: str,
 ) -> None:
-    source = (
-        spark.readStream
-        .format("rate")
-        .option("rowsPerSecond", 1)
-        .load()
-    )
+    source = spark.readStream.format("rate").option("rowsPerSecond", 1).load()
 
     vehicle_positions = source.selectExpr(
         "CAST(value % 10 AS STRING) AS vehicle_id",

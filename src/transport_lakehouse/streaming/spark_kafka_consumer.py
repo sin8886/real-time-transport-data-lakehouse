@@ -208,14 +208,13 @@ def start_validation_query(
         checkpoint_location=checkpoint_location,
     )
 
+
 def parse_event_time(message_stream: Any) -> Any:
     """Parse canonical event_ts JSON field into Spark event_time."""
     from pyspark.sql.functions import col, from_json
     from pyspark.sql.types import StringType, StructField, StructType
 
-    event_schema = StructType(
-        [StructField("event_ts", StringType(), True)]
-    )
+    event_schema = StructType([StructField("event_ts", StringType(), True)])
 
     return (
         message_stream.withColumn(
@@ -288,9 +287,8 @@ def build_dedup_identity(event_stream: Any) -> Any:
     timestamp_present = event_ts.isNotNull() & (length(trim(event_ts)) > 0)
 
     source_entity_id = event.getField("source_entity_id")
-    vehicle_id_present = (
-        source_entity_id.isNotNull()
-        & (length(trim(source_entity_id)) > 0)
+    vehicle_id_present = source_entity_id.isNotNull() & (
+        length(trim(source_entity_id)) > 0
     )
 
     trip_id = event.getField("trip_id")
@@ -341,9 +339,7 @@ def build_dedup_identity(event_stream: Any) -> Any:
             when(stop_sequence.isNotNull(), lit("stop_sequence"))
             .otherwise(lit("stop_id"))
             .alias("stop_context_type"),
-            coalesce(stop_sequence.cast("string"), stop_id).alias(
-                "stop_context_value"
-            ),
+            coalesce(stop_sequence.cast("string"), stop_id).alias("stop_context_value"),
             event_ts.alias("event_ts"),
         )
     )
@@ -367,8 +363,9 @@ def build_dedup_identity(event_stream: Any) -> Any:
         )
         .withColumn(
             "identity_status",
-            when(col("dedup_identity").isNotNull(), lit("resolved"))
-            .otherwise(lit("identity_unresolved")),
+            when(col("dedup_identity").isNotNull(), lit("resolved")).otherwise(
+                lit("identity_unresolved")
+            ),
         )
         .drop("_identity_event")
     )
@@ -387,9 +384,7 @@ def split_and_deduplicate_events(
     identified = build_dedup_identity(event_stream)
 
     resolved = identified.filter(col("identity_status") == "resolved")
-    unresolved = identified.filter(
-        col("identity_status") == "identity_unresolved"
-    )
+    unresolved = identified.filter(col("identity_status") == "identity_unresolved")
 
     deduplicated = apply_event_time_watermark(
         resolved,

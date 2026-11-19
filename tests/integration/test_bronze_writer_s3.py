@@ -84,10 +84,7 @@ def test_bronze_gtfs_snapshot_s3_round_trip(
     test_files = {
         "routes.txt": "route_id,route_short_name\nR_TEST,1\n",
         "stops.txt": "stop_id,stop_name\nS_TEST,Integration Stop\n",
-        "trips.txt": (
-            "route_id,service_id,trip_id\n"
-            "R_TEST,SERVICE_TEST,T_TEST\n"
-        ),
+        "trips.txt": ("route_id,service_id,trip_id\nR_TEST,SERVICE_TEST,T_TEST\n"),
     }
 
     for filename, content in test_files.items():
@@ -168,19 +165,14 @@ def test_bronze_gtfs_snapshot_s3_round_trip(
             original_file = source_dir / downloaded_file.name
 
             assert original_file.is_file()
-            assert sha256_file(downloaded_file) == sha256_file(
-                original_file
-            )
+            assert sha256_file(downloaded_file) == sha256_file(original_file)
 
     finally:
         if isolated_storage.uploaded_keys:
             s3_client.delete_objects(
                 Bucket=bucket_name,
                 Delete={
-                    "Objects": [
-                        {"Key": key}
-                        for key in isolated_storage.uploaded_keys
-                    ],
+                    "Objects": [{"Key": key} for key in isolated_storage.uploaded_keys],
                     "Quiet": True,
                 },
             )

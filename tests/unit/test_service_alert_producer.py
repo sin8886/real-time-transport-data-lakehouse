@@ -195,9 +195,7 @@ def test_publish_ignores_non_service_alert_events():
 
 
 def test_publish_propagates_kafka_send_failure():
-    fake_producer = FakeKafkaProducer(
-        error=RuntimeError("broker unavailable")
-    )
+    fake_producer = FakeKafkaProducer(error=RuntimeError("broker unavailable"))
     producer = ServiceAlertProducer(fake_producer)
 
     with pytest.raises(RuntimeError, match="broker unavailable"):

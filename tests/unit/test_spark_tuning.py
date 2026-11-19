@@ -192,7 +192,6 @@ def test_build_markdown_report_contains_benchmark_sections():
     assert "100.000" in report
 
 
-
 def test_build_active_trip_context_reuses_trips_and_reads_only_calendars(
     tmp_path,
     monkeypatch,

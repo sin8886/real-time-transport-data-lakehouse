@@ -13,7 +13,6 @@ from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
 )
 
 
-
 @pytest.fixture(scope="module")
 def spark() -> SparkSession:
     session = create_spark_session()
@@ -52,10 +51,7 @@ def test_default_starting_offsets_is_earliest() -> None:
     assert spark.reader.format_value == "kafka"
     assert spark.reader.options["startingOffsets"] == "earliest"
     assert spark.reader.options["subscribe"] == ",".join(RAW_TOPICS)
-    assert (
-        spark.reader.options["kafka.bootstrap.servers"]
-        == DEFAULT_BOOTSTRAP_SERVERS
-    )
+    assert spark.reader.options["kafka.bootstrap.servers"] == DEFAULT_BOOTSTRAP_SERVERS
 
 
 def test_latest_starting_offsets_is_supported() -> None:
@@ -272,10 +268,7 @@ def test_build_dedup_identity_marks_missing_identity_unresolved(
     results = build_dedup_identity(source).collect()
 
     assert len(results) == 3
-    assert all(
-        result["identity_status"] == "identity_unresolved"
-        for result in results
-    )
+    assert all(result["identity_status"] == "identity_unresolved" for result in results)
     assert all(result["dedup_identity"] is None for result in results)
 
 
@@ -406,10 +399,7 @@ def test_start_kafka_sink_passes_checkpoint_location() -> None:
     assert result == "fake-query"
     assert stream.selected_columns == ("key", "value", "topic")
     assert stream.writer.format_value == "kafka"
-    assert (
-        stream.writer.options["checkpointLocation"]
-        == "/tmp/test-kafka-checkpoint"
-    )
+    assert stream.writer.options["checkpointLocation"] == "/tmp/test-kafka-checkpoint"
     assert stream.writer.options["kafka.bootstrap.servers"] == "localhost:9092"
     assert stream.writer.output_mode == "append"
     assert stream.writer.trigger_options == {"processingTime": "5 seconds"}

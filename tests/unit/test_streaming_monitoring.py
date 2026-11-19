@@ -11,6 +11,7 @@ from transport_lakehouse.streaming.monitoring import (
     parse_kafka_offsets,
 )
 
+
 @pytest.mark.parametrize(
     ("raw_offsets", "expected"),
     [
@@ -35,22 +36,14 @@ def test_parse_kafka_offsets(
 
 
 def test_parse_kafka_offsets_ignores_invalid_partition_values() -> None:
-    raw_offsets = (
-        '{"topic-a":{"0":100,"1":"invalid","2":-1,"3":true}}'
-    )
+    raw_offsets = '{"topic-a":{"0":100,"1":"invalid","2":-1,"3":true}}'
 
-    assert parse_kafka_offsets(raw_offsets) == {
-        "topic-a": {"0": 100}
-    }
+    assert parse_kafka_offsets(raw_offsets) == {"topic-a": {"0": 100}}
 
 
 def test_calculate_spark_observed_offset_gap() -> None:
-    end_offset = (
-        '{"topic-a":{"0":100,"1":200},"topic-b":{"0":50}}'
-    )
-    latest_offset = (
-        '{"topic-a":{"0":110,"1":205},"topic-b":{"0":80}}'
-    )
+    end_offset = '{"topic-a":{"0":100,"1":200},"topic-b":{"0":50}}'
+    latest_offset = '{"topic-a":{"0":110,"1":205},"topic-b":{"0":80}}'
 
     # (110 - 100) + (205 - 200) + (80 - 50) = 45
     assert (
@@ -64,9 +57,7 @@ def test_calculate_spark_observed_offset_gap() -> None:
 
 def test_offset_gap_ignores_unmatched_topics_and_partitions() -> None:
     end_offset = '{"topic-a":{"0":100,"1":200}}'
-    latest_offset = (
-        '{"topic-a":{"0":110},"topic-b":{"0":500}}'
-    )
+    latest_offset = '{"topic-a":{"0":110},"topic-b":{"0":500}}'
 
     assert (
         calculate_spark_observed_offset_gap(
@@ -99,7 +90,6 @@ def test_offset_gap_handles_missing_or_invalid_offsets() -> None:
         )
         == 0
     )
-
 
 
 def test_extract_progress_metrics() -> None:
@@ -192,9 +182,6 @@ def test_extract_progress_metrics_handles_missing_optional_fields() -> None:
     assert metrics["sources"] == []
     assert metrics["state_operators"] == []
     assert metrics["num_output_rows"] == 0
-
-
-
 
 
 def test_listener_logs_query_started() -> None:
@@ -312,6 +299,7 @@ def test_listener_logs_normal_query_termination() -> None:
     logger.info.assert_called_once()
     assert "terminated" in logger.info.call_args.args[0]
 
+
 def test_listener_logs_query_idle() -> None:
     from transport_lakehouse.streaming.monitoring import (
         TransportStreamingListener,
@@ -333,6 +321,8 @@ def test_listener_logs_query_idle() -> None:
         "query-001",
         "run-001",
     )
+
+
 def test_configure_monitoring_logger_does_not_duplicate_handlers() -> None:
     from transport_lakehouse.streaming.monitoring import (
         configure_monitoring_logger,

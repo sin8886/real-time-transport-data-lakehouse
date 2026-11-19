@@ -21,11 +21,7 @@ def test_realtime_event_types_share_common_envelope() -> None:
 
 
 def test_canonical_realtime_fields_cover_every_event_field() -> None:
-    expected = {
-        field
-        for fields in REALTIME_EVENT_FIELDS.values()
-        for field in fields
-    }
+    expected = {field for fields in REALTIME_EVENT_FIELDS.values() for field in fields}
 
     assert set(CANONICAL_REALTIME_FIELDS) == expected
     assert set(CANONICAL_FIELD_TYPES) == expected
@@ -63,10 +59,7 @@ def test_spark_schema_matches_canonical_realtime_contract() -> None:
 
     assert tuple(schema.fieldNames()) == CANONICAL_REALTIME_FIELDS
 
-    actual_types = {
-        field.name: type(field.dataType)
-        for field in schema.fields
-    }
+    actual_types = {field.name: type(field.dataType) for field in schema.fields}
 
     expected_types = {
         str: StringType,

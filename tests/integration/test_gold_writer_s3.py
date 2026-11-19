@@ -70,8 +70,7 @@ def test_gold_parquet_s3_round_trip(tmp_path: Path) -> None:
     s3_client = boto3.client("s3", region_name=region_name)
 
     spark = (
-        SparkSession.builder
-        .appName("gold-s3-integration-test")
+        SparkSession.builder.appName("gold-s3-integration-test")
         .master("local[2]")
         .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
@@ -123,18 +122,14 @@ def test_gold_parquet_s3_round_trip(tmp_path: Path) -> None:
             "stop_metrics",
         ):
             expected_prefix = (
-                f"gold/{test_prefix}/{provider}/"
-                f"service_date={service_date}/{dataset}/"
+                f"gold/{test_prefix}/{provider}/service_date={service_date}/{dataset}/"
             )
 
             dataset_keys = [
-                key for key in uploaded_keys
-                if key.startswith(expected_prefix)
+                key for key in uploaded_keys if key.startswith(expected_prefix)
             ]
 
-            assert dataset_keys, (
-                f"No S3 Parquet files uploaded for {dataset}"
-            )
+            assert dataset_keys, f"No S3 Parquet files uploaded for {dataset}"
 
             downloaded_dir = tmp_path / "downloaded" / dataset
             downloaded_dir.mkdir(parents=True)
@@ -146,9 +141,7 @@ def test_gold_parquet_s3_round_trip(tmp_path: Path) -> None:
                 )
                 assert response["ContentLength"] > 0
 
-                downloaded_file = (
-                    downloaded_dir / f"part-{index}.parquet"
-                )
+                downloaded_file = downloaded_dir / f"part-{index}.parquet"
 
                 storage.download_file(
                     object_key,
@@ -157,9 +150,7 @@ def test_gold_parquet_s3_round_trip(tmp_path: Path) -> None:
 
             dataframe = spark.read.parquet(str(downloaded_dir))
 
-            assert dataframe.count() == 1, (
-                f"Unexpected row count for {dataset}"
-            )
+            assert dataframe.count() == 1, f"Unexpected row count for {dataset}"
 
     finally:
         try:
@@ -168,8 +159,7 @@ def test_gold_parquet_s3_round_trip(tmp_path: Path) -> None:
                     Bucket=bucket_name,
                     Delete={
                         "Objects": [
-                            {"Key": key}
-                            for key in isolated_storage.uploaded_keys
+                            {"Key": key} for key in isolated_storage.uploaded_keys
                         ],
                         "Quiet": True,
                     },

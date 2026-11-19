@@ -59,10 +59,7 @@ def test_write_silver_parquet_uses_canonical_schemas(
     silver_dimensions,
 ):
     spark = Mock()
-    dataframes = {
-        dataset: Mock()
-        for dataset in ("routes", "stops", "trips")
-    }
+    dataframes = {dataset: Mock() for dataset in ("routes", "stops", "trips")}
     spark.createDataFrame.side_effect = dataframes.values()
 
     result = write_silver_parquet(
@@ -77,18 +74,10 @@ def test_write_silver_parquet_uses_canonical_schemas(
 
     for dataset, dataframe in dataframes.items():
         dataframe.write.mode.return_value.parquet.assert_called_once_with(
-            str(
-                tmp_path
-                / "at"
-                / "ingest_date=2026-11-06"
-                / dataset
-            )
+            str(tmp_path / "at" / "ingest_date=2026-11-06" / dataset)
         )
 
-    schemas = [
-        call.kwargs["schema"]
-        for call in spark.createDataFrame.call_args_list
-    ]
+    schemas = [call.kwargs["schema"] for call in spark.createDataFrame.call_args_list]
     assert [field.name for field in schemas[0].fields] == [
         "route_id",
         "agency_id",
@@ -157,9 +146,7 @@ def test_upload_silver_parquet_uploads_all_datasets(tmp_path):
         output_paths[dataset] = str(dataset_dir)
 
     storage = Mock()
-    storage.upload_file.side_effect = (
-        lambda local_path, layer, key: f"{layer}/{key}"
-    )
+    storage.upload_file.side_effect = lambda local_path, layer, key: f"{layer}/{key}"
 
     uploaded = upload_silver_parquet(
         output_paths,
@@ -179,8 +166,7 @@ def test_upload_silver_parquet_uploads_all_datasets(tmp_path):
 
 def test_upload_silver_parquet_rejects_missing_directory(tmp_path):
     output_paths = {
-        dataset: str(tmp_path / dataset)
-        for dataset in ("routes", "stops", "trips")
+        dataset: str(tmp_path / dataset) for dataset in ("routes", "stops", "trips")
     }
 
     storage = Mock()
@@ -240,9 +226,7 @@ def test_upload_silver_parquet_uploads_multiple_files(tmp_path):
         output_paths[dataset] = str(dataset_dir)
 
     storage = Mock()
-    storage.upload_file.side_effect = (
-        lambda local_path, layer, key: f"{layer}/{key}"
-    )
+    storage.upload_file.side_effect = lambda local_path, layer, key: f"{layer}/{key}"
 
     uploaded = upload_silver_parquet(
         output_paths,
@@ -274,9 +258,7 @@ def test_upload_silver_parquet_preserves_nested_directory(tmp_path):
         output_paths[dataset] = str(dataset_dir)
 
     storage = Mock()
-    storage.upload_file.side_effect = (
-        lambda local_path, layer, key: f"{layer}/{key}"
-    )
+    storage.upload_file.side_effect = lambda local_path, layer, key: f"{layer}/{key}"
 
     uploaded = upload_silver_parquet(
         output_paths,
@@ -286,8 +268,7 @@ def test_upload_silver_parquet_preserves_nested_directory(tmp_path):
     )
 
     assert (
-        "silver/at/ingest_date=2026-11-06/"
-        "routes/nested/part-00001.parquet"
+        "silver/at/ingest_date=2026-11-06/routes/nested/part-00001.parquet"
     ) in uploaded
 
 
@@ -324,9 +305,7 @@ def test_upload_silver_parquet_returns_storage_adapter_keys(tmp_path):
     adapter_returned_keys = []
 
     def fake_upload(local_path, layer, key):
-        uploaded_key = (
-            f"{layer}/integration-tests/unique-prefix/{key}"
-        )
+        uploaded_key = f"{layer}/integration-tests/unique-prefix/{key}"
         adapter_returned_keys.append(uploaded_key)
         return uploaded_key
 
@@ -343,6 +322,8 @@ def test_upload_silver_parquet_returns_storage_adapter_keys(tmp_path):
     assert len(uploaded) == 3
     assert uploaded == adapter_returned_keys
     assert storage.upload_file.call_count == 3
+
+
 def test_write_silver_parquet_rejects_extra_record_field(
     tmp_path,
     silver_dimensions,
@@ -395,8 +376,8 @@ def test_write_silver_parquet_stops_owned_spark_on_failure(
 
     spark.createDataFrame.return_value = dataframe
 
-    dataframe.write.mode.return_value.parquet.side_effect = (
-        RuntimeError("Parquet write failed")
+    dataframe.write.mode.return_value.parquet.side_effect = RuntimeError(
+        "Parquet write failed"
     )
 
     monkeypatch.setattr(

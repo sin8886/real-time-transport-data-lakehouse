@@ -222,7 +222,9 @@ def live_metrics(vehicles):
     speeds = vehicles["speed"].dropna()
     moving = speeds[speeds > 2]
     stopped = speeds[speeds <= 2]
-    congestion_score = round((len(stopped) / len(speeds)) * 100) if len(speeds) else None
+    congestion_score = (
+        round((len(stopped) / len(speeds)) * 100) if len(speeds) else None
+    )
     status = (
         "Elevated"
         if congestion_score is not None and congestion_score >= 40
@@ -297,7 +299,9 @@ def render_live_map(vehicles) -> None:
     map_vehicles = map_vehicles.dropna(subset=["latitude", "longitude"])
     if len(map_vehicles) > 600:
         map_vehicles = map_vehicles.head(600)
-        st.caption("Map is capped at the 600 most recent vehicles for browser stability.")
+        st.caption(
+            "Map is capped at the 600 most recent vehicles for browser stability."
+        )
     st.map(
         map_vehicles.rename(columns={"latitude": "lat", "longitude": "lon"})[
             ["lat", "lon"]
@@ -363,7 +367,9 @@ def overview_page() -> None:
     with left:
         st.subheader("Auckland live traffic")
         if vehicles.empty:
-            st.info("Start the realtime producer and Spark serving job to populate this view.")
+            st.info(
+                "Start the realtime producer and Spark serving job to populate this view."
+            )
         else:
             render_live_map(vehicles)
     with right:
@@ -600,9 +606,11 @@ def platform_page() -> None:
         display_runs = runs.copy()
         for column in ("started_at", "completed_at"):
             if column in display_runs:
-                display_runs[column] = pd.to_datetime(
-                    display_runs[column], utc=True, errors="coerce"
-                ).dt.tz_convert("Pacific/Auckland").dt.strftime("%Y-%m-%d %H:%M:%S")
+                display_runs[column] = (
+                    pd.to_datetime(display_runs[column], utc=True, errors="coerce")
+                    .dt.tz_convert("Pacific/Auckland")
+                    .dt.strftime("%Y-%m-%d %H:%M:%S")
+                )
         st.dataframe(display_runs, width="stretch", hide_index=True)
     st.markdown(
         """

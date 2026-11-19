@@ -318,16 +318,13 @@ def main() -> int:
             "service_alert": 2,
         }
         actual_counts = {
-            event_type: sum(
-                row["event_type"] == event_type for row in dedup_rows
-            )
+            event_type: sum(row["event_type"] == event_type for row in dedup_rows)
             for event_type in expected_counts
         }
 
         if actual_counts != expected_counts:
             raise AssertionError(
-                f"Expected event counts {expected_counts}, "
-                f"got {actual_counts}."
+                f"Expected event counts {expected_counts}, got {actual_counts}."
             )
 
         if len(dedup_rows) != 6:
@@ -340,15 +337,11 @@ def main() -> int:
                 f"Expected 1 unresolved row, got {len(unresolved_rows)}."
             )
 
-        if any(
-            row["identity_status"] != "resolved"
-            for row in dedup_rows
-        ):
+        if any(row["identity_status"] != "resolved" for row in dedup_rows):
             raise AssertionError("Unresolved identity entered dedup results.")
 
         if any(
-            row["identity_status"] != "identity_unresolved"
-            for row in unresolved_rows
+            row["identity_status"] != "identity_unresolved" for row in unresolved_rows
         ):
             raise AssertionError("Unexpected status in unresolved results.")
 

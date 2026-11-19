@@ -251,8 +251,7 @@ def main() -> None:
                 "REALTIME_DELAY_CHECKPOINT",
                 os.getenv(
                     "REALTIME_CHECKPOINT",
-                    "/opt/transport-lakehouse-checkpoints/dashboard/"
-                    "realtime-vehicles",
+                    "/opt/transport-lakehouse-checkpoints/dashboard/realtime-vehicles",
                 )
                 + "-delays",
             ),

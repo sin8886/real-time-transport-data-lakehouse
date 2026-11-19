@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 
+
 def parse_kafka_offsets(
     raw_offsets: str | None,
 ) -> dict[str, dict[str, int]]:
@@ -65,7 +66,6 @@ def calculate_spark_observed_offset_gap(
                 total_gap += max(0, latest_value - end_value)
 
     return total_gap
-
 
 
 def _get_value(obj: object, name: str, default: object = None) -> object:
@@ -159,18 +159,11 @@ def extract_progress_metrics(progress: object) -> dict[str, object]:
         ),
         "watermark": event_time.get("watermark"),
         "num_output_rows": _get_value(sink, "numOutputRows", 0),
-        "sources": [
-            _extract_source_metrics(source)
-            for source in sources
-        ],
+        "sources": [_extract_source_metrics(source) for source in sources],
         "state_operators": [
-            _extract_state_operator_metrics(operator)
-            for operator in state_operators
+            _extract_state_operator_metrics(operator) for operator in state_operators
         ],
     }
-
-
-
 
 
 try:
@@ -200,9 +193,7 @@ def configure_monitoring_logger(
     if not logger.handlers:
         handler = logging.StreamHandler()
         handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)s %(name)s %(message)s"
-            )
+            logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
         )
         logger.addHandler(handler)
 
@@ -238,6 +229,7 @@ class TransportStreamingListener(_StreamingQueryListener):
             "Streaming query progress: %s",
             json.dumps(metrics, sort_keys=True, default=str),
         )
+
     def onQueryIdle(self, event: object) -> None:
         self.logger.info(
             "Streaming query idle: query_id=%s run_id=%s",

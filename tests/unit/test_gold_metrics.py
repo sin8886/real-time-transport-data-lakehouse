@@ -183,10 +183,7 @@ def test_build_service_reliability_gold(spark: SparkSession) -> None:
         calendar_dates=[],
         service_date="2026-10-21",
     )
-    rows = {
-        row["route_id"]: row
-        for row in result.collect()
-    }
+    rows = {row["route_id"]: row for row in result.collect()}
 
     assert rows["R1"]["scheduled_trips"] == 3
     assert rows["R1"]["observed_trips"] == 3

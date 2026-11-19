@@ -350,7 +350,12 @@ def test_trip_update_accepts_stop_time_update_list() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(0, "SCHEDULED"), ("SCHEDULED", "SCHEDULED"), ("SKIPPED", "SKIPPED"), (None, None)],
+    [
+        (0, "SCHEDULED"),
+        ("SCHEDULED", "SCHEDULED"),
+        ("SKIPPED", "SKIPPED"),
+        (None, None),
+    ],
 )
 def test_schedule_relationship_accepts_standard_values(
     value: object, expected: str | None
@@ -638,9 +643,7 @@ def test_timestamp_error_identifies_vehicle_field_and_entity() -> None:
 
 
 def test_timestamp_error_identifies_trip_stop_field_and_entity() -> None:
-    payload = _trip_update_payload(
-        {"stop_id": "stop-1", "arrival": {"time": "bad"}}
-    )
+    payload = _trip_update_payload({"stop_id": "stop-1", "arrival": {"time": "bad"}})
 
     with pytest.raises(
         RealtimeParseError,
@@ -763,13 +766,10 @@ def test_fetcher_validates_content_type(
             else _parity_protobuf_payload()
         )
         assert fetcher.fetch(response_format=response_format)
-        assert (
-            http_get.call_args.kwargs["headers"]["Accept"]
-            == (
-                "application/json"
-                if response_format == "json"
-                else "application/x-protobuf"
-            )
+        assert http_get.call_args.kwargs["headers"]["Accept"] == (
+            "application/json"
+            if response_format == "json"
+            else "application/x-protobuf"
         )
 
 
@@ -828,9 +828,7 @@ def test_fetcher_retries_connection_error_then_succeeds() -> None:
     response.headers = {"Content-Type": "application/json"}
     response.raise_for_status.return_value = None
 
-    http_get = Mock(
-        side_effect=[requests.ConnectionError(), response]
-    )
+    http_get = Mock(side_effect=[requests.ConnectionError(), response])
     sleep = Mock()
 
     fetcher = RealtimeFetcher(

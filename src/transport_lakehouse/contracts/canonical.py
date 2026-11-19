@@ -48,10 +48,7 @@ STATIC_DIMENSION_FIELDS = {
 }
 
 # Shared entity identifiers use strings in both Static and Realtime data.
-SHARED_ENTITY_FIELD_TYPES = {
-    field: str
-    for field in SHARED_ENTITY_FIELDS
-}
+SHARED_ENTITY_FIELD_TYPES = {field: str for field in SHARED_ENTITY_FIELDS}
 
 # Python-level types for standardized Static Silver dimensions.
 STATIC_DIMENSION_FIELD_TYPES = {
@@ -145,9 +142,7 @@ REALTIME_EVENT_FIELDS = {
 # Ordered union of all fields in the unified Realtime event model.
 CANONICAL_REALTIME_FIELDS = tuple(
     dict.fromkeys(
-        field
-        for fields in REALTIME_EVENT_FIELDS.values()
-        for field in fields
+        field for fields in REALTIME_EVENT_FIELDS.values() for field in fields
     )
 )
 

@@ -139,9 +139,7 @@ def test_cancelled_trip_update_can_omit_stop_context():
         ("stop_id", "", "stop_sequence or"),
     ],
 )
-def test_serialize_rejects_missing_required_identity_fields(
-    field, value, message
-):
+def test_serialize_rejects_missing_required_identity_fields(field, value, message):
     event = make_trip_event(stop_sequence=None)
     event[field] = value
 
@@ -208,9 +206,7 @@ def test_publish_ignores_non_trip_update_events():
 
 
 def test_publish_propagates_kafka_send_failure():
-    fake_producer = FakeKafkaProducer(
-        error=RuntimeError("broker unavailable")
-    )
+    fake_producer = FakeKafkaProducer(error=RuntimeError("broker unavailable"))
     producer = TripUpdateProducer(fake_producer)
 
     with pytest.raises(RuntimeError, match="broker unavailable"):

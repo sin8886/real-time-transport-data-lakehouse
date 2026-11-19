@@ -23,12 +23,8 @@ from transport_lakehouse.streaming.spark_kafka_consumer import (  # noqa: E402
 )
 
 TEST_TOPIC = "transport.watermark.test"
-DEFAULT_CHECKPOINT = (
-    "/opt/transport-lakehouse-checkpoints/day32/watermark-test"
-)
-DEFAULT_RESULTS = (
-    "/opt/transport-lakehouse-checkpoints/day32/watermark-results.jsonl"
-)
+DEFAULT_CHECKPOINT = "/opt/transport-lakehouse-checkpoints/day32/watermark-test"
+DEFAULT_RESULTS = "/opt/transport-lakehouse-checkpoints/day32/watermark-results.jsonl"
 WATERMARK_DELAY = "5 minutes"
 WINDOW_DURATION = "1 minute"
 
@@ -114,9 +110,7 @@ def start_watermark_query(
     )
 
     window_counts = (
-        watermarked_stream.groupBy(
-            window(col("event_time"), WINDOW_DURATION)
-        )
+        watermarked_stream.groupBy(window(col("event_time"), WINDOW_DURATION))
         .agg(count("*").alias("event_count"))
         .select(
             col("window.start").alias("window_start"),
@@ -165,13 +159,11 @@ def wait_for_processed_rows(query: Any, phase: str) -> None:
     input_rows = 0
     if progress is not None:
         input_rows = sum(
-            int(item.get("numInputRows", 0))
-            for item in progress.get("sources", [])
+            int(item.get("numInputRows", 0)) for item in progress.get("sources", [])
         )
 
     print(
-        f"{phase}: processing completed; "
-        f"latest micro-batch input rows={input_rows}.",
+        f"{phase}: processing completed; latest micro-batch input rows={input_rows}.",
         flush=True,
     )
 
@@ -221,40 +213,52 @@ def main() -> int:
 
         print("\n===== Phase 1: Initial Events =====", flush=True)
         publish_test_event(
-            spark, args.bootstrap_servers,
-            "day32-on-time-1", "2026-10-29T10:00:10+00:00",
+            spark,
+            args.bootstrap_servers,
+            "day32-on-time-1",
+            "2026-10-29T10:00:10+00:00",
         )
         publish_test_event(
-            spark, args.bootstrap_servers,
-            "day32-on-time-2", "2026-10-29T10:00:30+00:00",
+            spark,
+            args.bootstrap_servers,
+            "day32-on-time-2",
+            "2026-10-29T10:00:30+00:00",
         )
         wait_for_processed_rows(query, "Initial events")
 
         print("\n===== Phase 2: Advance Watermark =====", flush=True)
         publish_test_event(
-            spark, args.bootstrap_servers,
-            "day32-watermark-advance", "2026-10-29T10:07:00+00:00",
+            spark,
+            args.bootstrap_servers,
+            "day32-watermark-advance",
+            "2026-10-29T10:07:00+00:00",
         )
         wait_for_processed_rows(query, "Watermark advance")
 
         print("\n===== Phase 3: Out-of-order Event =====", flush=True)
         publish_test_event(
-            spark, args.bootstrap_servers,
-            "day32-out-of-order", "2026-10-29T10:03:00+00:00",
+            spark,
+            args.bootstrap_servers,
+            "day32-out-of-order",
+            "2026-10-29T10:03:00+00:00",
         )
         wait_for_processed_rows(query, "Out-of-order event")
 
         print("\n===== Phase 4: Too-late Event =====", flush=True)
         publish_test_event(
-            spark, args.bootstrap_servers,
-            "day32-too-late", "2026-10-29T09:50:00+00:00",
+            spark,
+            args.bootstrap_servers,
+            "day32-too-late",
+            "2026-10-29T09:50:00+00:00",
         )
         wait_for_processed_rows(query, "Too-late event")
 
         print("\n===== Phase 5: Finalize Windows =====", flush=True)
         publish_test_event(
-            spark, args.bootstrap_servers,
-            "day32-final-advance", "2026-10-29T10:15:00+00:00",
+            spark,
+            args.bootstrap_servers,
+            "day32-final-advance",
+            "2026-10-29T10:15:00+00:00",
         )
         wait_for_processed_rows(query, "Final event-time advance")
 
@@ -281,10 +285,7 @@ def main() -> int:
         for result in results:
             print(json.dumps(result, ensure_ascii=False), flush=True)
 
-        window_counts = {
-            item["window_start"]: item["event_count"]
-            for item in results
-        }
+        window_counts = {item["window_start"]: item["event_count"] for item in results}
 
         expected_counts = {
             "2026-10-29T10:00:00": 2,

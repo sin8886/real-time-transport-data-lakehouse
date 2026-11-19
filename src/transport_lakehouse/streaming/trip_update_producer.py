@@ -30,19 +30,17 @@ def serialize_trip_update(event: Mapping[str, Any]) -> bytes:
     if stop_sequence is not None:
         if isinstance(stop_sequence, bool) or not isinstance(stop_sequence, int):
             raise ValueError("stop_sequence must be an integer or None")
-    elif (
-        event.get("trip_schedule_relationship") != "CANCELED"
-        and (not isinstance(stop_id, str) or not stop_id)
+    elif event.get("trip_schedule_relationship") != "CANCELED" and (
+        not isinstance(stop_id, str) or not stop_id
     ):
-        raise ValueError(
-            "trip_update requires stop_sequence or a non-empty stop_id"
-        )
+        raise ValueError("trip_update requires stop_sequence or a non-empty stop_id")
 
     return json.dumps(
         dict(event),
         ensure_ascii=False,
         sort_keys=True,
     ).encode("utf-8")
+
 
 def build_trip_update_key(event: Mapping[str, Any]) -> bytes:
     """Build a Kafka key from the canonical Trip Stop business context."""

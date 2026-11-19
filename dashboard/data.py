@@ -202,9 +202,7 @@ def load_s3_health() -> dict[str, Any]:
         }
     except Exception as error:
         status = (
-            "Not configured"
-            if "credentials" in str(error).lower()
-            else "Unavailable"
+            "Not configured" if "credentials" in str(error).lower() else "Unavailable"
         )
         return {
             "status": status,

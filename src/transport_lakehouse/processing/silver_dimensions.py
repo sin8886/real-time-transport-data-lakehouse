@@ -88,9 +88,7 @@ def build_silver_stops(
                 "latitude": _optional_float(record.get("stop_lat")),
                 "longitude": _optional_float(record.get("stop_lon")),
                 "zone_id": _clean_text(record.get("zone_id")),
-                "wheelchair_boarding": _optional_int(
-                    record.get("wheelchair_boarding")
-                ),
+                "wheelchair_boarding": _optional_int(record.get("wheelchair_boarding")),
             },
         )
         for record in records

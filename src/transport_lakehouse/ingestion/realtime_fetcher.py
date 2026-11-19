@@ -132,9 +132,7 @@ def _normalize_schedule_relationship(
         try:
             return enum_type.Name(value)
         except (ImportError, ValueError) as error:
-            raise RealtimeParseError(
-                f"unknown {field} enum value: {value}"
-            ) from error
+            raise RealtimeParseError(f"unknown {field} enum value: {value}") from error
     raise RealtimeParseError(f"{field} must be a string or enum")
 
 
@@ -277,9 +275,7 @@ def _normalize_trip_update(
     if isinstance(stop_updates, Mapping):
         stop_updates = [stop_updates]
     elif not isinstance(stop_updates, (list, tuple)):
-        raise RealtimeParseError(
-            "stop_time_update must be a mapping, list, or tuple"
-        )
+        raise RealtimeParseError("stop_time_update must be a mapping, list, or tuple")
     if not stop_updates:
         if trip_schedule_relationship != "CANCELED":
             return []
@@ -297,12 +293,8 @@ def _normalize_trip_update(
         event.update(
             {
                 "trip_id": trip_id,
-                "route_id": _string_or_none(
-                    _json_value(trip, "route_id"), "route_id"
-                ),
-                "vehicle_id": _string_or_none(
-                    _json_value(vehicle, "id"), "vehicle_id"
-                ),
+                "route_id": _string_or_none(_json_value(trip, "route_id"), "route_id"),
+                "vehicle_id": _string_or_none(_json_value(vehicle, "id"), "vehicle_id"),
                 "stop_id": None,
                 "stop_sequence": None,
                 "scheduled_arrival_ts": None,
@@ -350,9 +342,7 @@ def _normalize_trip_update(
             {
                 "trip_id": trip_id,
                 "route_id": _string_or_none(_json_value(trip, "route_id"), "route_id"),
-                "vehicle_id": _string_or_none(
-                    _json_value(vehicle, "id"), "vehicle_id"
-                ),
+                "vehicle_id": _string_or_none(_json_value(vehicle, "id"), "vehicle_id"),
                 "stop_id": stop_id,
                 "stop_sequence": stop_sequence,
                 "scheduled_arrival_ts": None,
@@ -419,9 +409,7 @@ def _normalize_alert(entity: Any, provider: str, ingest_ts: str) -> dict[str, An
                 "alert.description_text.translation must contain objects"
             )
         else:
-            description = _string_or_none(
-                translations[0].get("text"), "description"
-            )
+            description = _string_or_none(translations[0].get("text"), "description")
     else:
         description = _string_or_none(description_text, "description")
     event = _canonical_envelope(
@@ -744,9 +732,7 @@ class RealtimeFetcher:
                 if attempt + 1 < self.max_attempts:
                     self.sleep(self.retry_backoff_seconds * (2**attempt))
                     continue
-                raise RealtimeHTTPError(
-                    "realtime request timed out"
-                ) from error
+                raise RealtimeHTTPError("realtime request timed out") from error
             except requests.HTTPError as error:
                 status_code = getattr(
                     getattr(error, "response", None), "status_code", None
@@ -757,16 +743,12 @@ class RealtimeFetcher:
                 if retryable and attempt + 1 < self.max_attempts:
                     self.sleep(self.retry_backoff_seconds * (2**attempt))
                     continue
-                raise RealtimeHTTPError(
-                    "realtime request failed"
-                ) from error
+                raise RealtimeHTTPError("realtime request failed") from error
             except requests.ConnectionError as error:
                 if attempt + 1 < self.max_attempts:
                     self.sleep(self.retry_backoff_seconds * (2**attempt))
                     continue
-                raise RealtimeHTTPError(
-                    "realtime request failed"
-                ) from error
+                raise RealtimeHTTPError("realtime request failed") from error
             except requests.RequestException as error:
                 raise RealtimeHTTPError("realtime request failed") from error
         content_type = response.headers.get("Content-Type", "")

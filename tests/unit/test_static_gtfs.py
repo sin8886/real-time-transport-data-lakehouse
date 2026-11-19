@@ -121,12 +121,8 @@ def test_ingestion_rejects_invalid_date_format(
 def test_feed_fingerprint_is_deterministic(tmp_path: Path) -> None:
     source_dir = tmp_path / "feed"
     source_dir.mkdir()
-    (source_dir / "routes.txt").write_text(
-        "route_id\nr1\n", encoding="utf-8"
-    )
-    (source_dir / "stops.txt").write_text(
-        "stop_id\ns1\n", encoding="utf-8"
-    )
+    (source_dir / "routes.txt").write_text("route_id\nr1\n", encoding="utf-8")
+    (source_dir / "stops.txt").write_text("stop_id\ns1\n", encoding="utf-8")
 
     ingestion = StaticGTFSIngestion(
         source_dir=source_dir,

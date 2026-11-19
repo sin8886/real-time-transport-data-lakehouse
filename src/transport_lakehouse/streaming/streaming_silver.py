@@ -26,10 +26,7 @@ def _parse_canonical_events(event_stream: Any) -> Any:
 
     event = col("_silver_event")
     result = parsed.select(
-        *[
-            event.getField(field).alias(field)
-            for field in schema.fieldNames()
-        ],
+        *[event.getField(field).alias(field) for field in schema.fieldNames()],
         *[
             col(field)
             for field in (
@@ -47,8 +44,7 @@ def _parse_canonical_events(event_stream: Any) -> Any:
     )
 
     return (
-        result
-        .withColumn("event_ts", col("event_ts").cast("timestamp"))
+        result.withColumn("event_ts", col("event_ts").cast("timestamp"))
         .withColumn("ingest_ts", col("ingest_ts").cast("timestamp"))
         .withColumn(
             "scheduled_arrival_ts",
@@ -82,9 +78,7 @@ def build_vehicle_position_silver(event_stream: Any) -> Any:
     from pyspark.sql.functions import col
 
     parsed = _parse_canonical_events(event_stream)
-    return parsed.filter(
-        col("event_type") == "vehicle_position"
-    ).select(
+    return parsed.filter(col("event_type") == "vehicle_position").select(
         "event_type",
         "source_provider",
         "source_entity_id",
@@ -120,9 +114,7 @@ def build_trip_update_silver(event_stream: Any) -> Any:
     from pyspark.sql.functions import col
 
     parsed = _parse_canonical_events(event_stream)
-    return parsed.filter(
-        col("event_type") == "trip_update"
-    ).select(
+    return parsed.filter(col("event_type") == "trip_update").select(
         "event_type",
         "source_provider",
         "source_entity_id",
@@ -163,9 +155,7 @@ def build_service_alert_silver(event_stream: Any) -> Any:
     from pyspark.sql.functions import col
 
     parsed = _parse_canonical_events(event_stream)
-    return parsed.filter(
-        col("event_type") == "service_alert"
-    ).select(
+    return parsed.filter(col("event_type") == "service_alert").select(
         "event_type",
         "source_provider",
         "source_entity_id",

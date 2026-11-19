@@ -69,9 +69,7 @@ def validate_results_dir(results_dir: str | Path) -> Path:
     gold_root = (PROJECT_ROOT / "data" / "gold").resolve()
 
     if resolved == gold_root or gold_root in resolved.parents:
-        raise ValueError(
-            "Benchmark results must not be written under data/gold."
-        )
+        raise ValueError("Benchmark results must not be written under data/gold.")
 
     return resolved
 
@@ -159,10 +157,7 @@ def executed_plan_summary(dataframe: Any) -> dict[str, Any]:
 
     return {
         "text": plan,
-        "nodes": {
-            node: node in plan
-            for node in PLAN_NODES
-        },
+        "nodes": {node: node in plan for node in PLAN_NODES},
         "adaptive_final_plan": "isFinalPlan=true" in plan,
     }
 
@@ -195,9 +190,7 @@ def measure_dataframe(
     if actual_schema != expected_schema:
         raise ValueError(f"{name} returned a schema different from baseline")
 
-    count_query = dataframe.agg(
-        F.count(F.lit(1)).alias("_benchmark_count")
-    )
+    count_query = dataframe.agg(F.count(F.lit(1)).alias("_benchmark_count"))
 
     started = perf_counter()
     count_row = count_query.collect()[0]
@@ -219,6 +212,7 @@ def measure_dataframe(
         "executed_plan": executed_plan_summary(count_query),
     }
 
+
 def repartition_dataframe(
     dataframe: Any,
     *,
@@ -233,9 +227,7 @@ def repartition_dataframe(
 
     if partition_column is not None:
         if partition_column not in dataframe.columns:
-            raise ValueError(
-                f"Unknown repartition column: {partition_column}"
-            )
+            raise ValueError(f"Unknown repartition column: {partition_column}")
         return dataframe.repartition(partitions, partition_column)
 
     return dataframe.repartition(partitions)
@@ -280,10 +272,7 @@ def run_repeated_case(
         for index in range(1, runs + 1)
     ]
 
-    timings = [
-        item["metrics"]["count_action_ms"]
-        for item in measured
-    ]
+    timings = [item["metrics"]["count_action_ms"] for item in measured]
 
     return {
         "warmup": warmup,
@@ -307,8 +296,7 @@ def collect_environment(spark: Any) -> dict[str, Any]:
         "spark.driver.memory",
     )
     effective_conf = {
-        key: conf.get(key, "not_explicitly_set")
-        for key in effective_keys
+        key: conf.get(key, "not_explicitly_set") for key in effective_keys
     }
 
     try:
@@ -319,9 +307,7 @@ def collect_environment(spark: Any) -> dict[str, Any]:
             timeout=5,
             check=False,
         )
-        java_lines = (
-            java_result.stderr or java_result.stdout
-        ).splitlines()
+        java_lines = (java_result.stderr or java_result.stdout).splitlines()
         java_version = java_lines[0] if java_lines else "unavailable"
     except (OSError, subprocess.SubprocessError):
         java_version = "unavailable"
@@ -406,32 +392,32 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             result["input_partition_benchmark"]["cases"],
         )
     )
-    lines.extend(
-        render_cases("Broadcast benchmark", result["broadcast_benchmark"])
-    )
+    lines.extend(render_cases("Broadcast benchmark", result["broadcast_benchmark"]))
     lines.extend(
         render_cases("Output repartition benchmark", result["repartition_benchmark"])
     )
 
-    lines.extend([
-        "## Validation",
-        "",
-        f"- All cases validated: `{result['validation']['all_cases_validated']}`",
-        f"- Expected event rows: `{result['validation']['events_expected_rows']}`",
-        f"- Expected active event rows: `{result['validation']['active_trip_expected_rows']}`",
-        "- Each case validates output row count and schema against its baseline.",
-        "",
-        "## Methodology",
-        "",
-        f"- Warmup runs per case: `{result['methodology']['warmup_runs']}`",
-        f"- Measured runs per case: `{result['methodology']['measured_runs_per_case']}`",
-        f"- Primary metric: `{result['methodology']['primary_metric']}`",
-        f"- Shuffle isolation: `{result['methodology']['shuffle_isolation']}`",
-        f"- Production code modified: `{result['methodology']['production_code_modified']}`",
-        "",
-        "## Limitations",
-        "",
-    ])
+    lines.extend(
+        [
+            "## Validation",
+            "",
+            f"- All cases validated: `{result['validation']['all_cases_validated']}`",
+            f"- Expected event rows: `{result['validation']['events_expected_rows']}`",
+            f"- Expected active event rows: `{result['validation']['active_trip_expected_rows']}`",
+            "- Each case validates output row count and schema against its baseline.",
+            "",
+            "## Methodology",
+            "",
+            f"- Warmup runs per case: `{result['methodology']['warmup_runs']}`",
+            f"- Measured runs per case: `{result['methodology']['measured_runs_per_case']}`",
+            f"- Primary metric: `{result['methodology']['primary_metric']}`",
+            f"- Shuffle isolation: `{result['methodology']['shuffle_isolation']}`",
+            f"- Production code modified: `{result['methodology']['production_code_modified']}`",
+            "",
+            "## Limitations",
+            "",
+        ]
+    )
 
     for limitation in result["limitations"]:
         lines.append(f"- {limitation}")
@@ -491,8 +477,7 @@ def run_benchmark(
 
     if results_path.exists() or markdown_path.exists():
         raise FileExistsError(
-            "A Spark tuning v2 report already exists in: "
-            f"{results_dir}"
+            f"A Spark tuning v2 report already exists in: {results_dir}"
         )
 
     spark = create_spark_session()
@@ -500,10 +485,7 @@ def run_benchmark(
     try:
         tables = load_gtfs_tables(spark, input_dir)
 
-        input_counts = {
-            name: dataframe.count()
-            for name, dataframe in tables.items()
-        }
+        input_counts = {name: dataframe.count() for name, dataframe in tables.items()}
 
         events = build_trip_stop_events(
             routes=tables["routes"],
@@ -527,9 +509,7 @@ def run_benchmark(
         active_expected_rows = active_events.count()
         active_expected_schema = schema_summary(active_events)
 
-        original_shuffle_partitions = spark.conf.get(
-            "spark.sql.shuffle.partitions"
-        )
+        original_shuffle_partitions = spark.conf.get("spark.sql.shuffle.partitions")
         original_aqe = spark.conf.get("spark.sql.adaptive.enabled")
         original_broadcast_threshold = spark.conf.get(
             "spark.sql.autoBroadcastJoinThreshold"

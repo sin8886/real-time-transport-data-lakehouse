@@ -141,9 +141,7 @@ def build_service_reliability_gold(
         "route_id",
         "delay_seconds",
     }
-    missing_update_columns = required_update_columns.difference(
-        trip_updates.columns
-    )
+    missing_update_columns = required_update_columns.difference(trip_updates.columns)
     if missing_update_columns:
         raise ValueError(
             "Trip updates DataFrame is missing required columns: "
@@ -206,9 +204,9 @@ def build_service_reliability_gold(
             F.col("updates.route_id").alias("route_id"),
             F.col("updates.trip_id").alias("trip_id"),
             F.col("updates.delay_seconds").alias("delay_seconds"),
-            F.col(
-                "updates.trip_schedule_relationship"
-            ).alias("trip_schedule_relationship"),
+            F.col("updates.trip_schedule_relationship").alias(
+                "trip_schedule_relationship"
+            ),
         )
     )
 
@@ -238,14 +236,16 @@ def build_service_reliability_gold(
                 F.lit(1),
             ).otherwise(F.lit(0))
         ).alias("delayed_trips"),
-        F.sum(
-            F.when(F.col("is_cancelled") == 1, F.lit(1)).otherwise(F.lit(0))
-        ).alias("cancelled_trips"),
+        F.sum(F.when(F.col("is_cancelled") == 1, F.lit(1)).otherwise(F.lit(0))).alias(
+            "cancelled_trips"
+        ),
     )
 
-    routes = scheduled_by_route.select("route_id").union(
-        observed_by_route.select("route_id")
-    ).distinct()
+    routes = (
+        scheduled_by_route.select("route_id")
+        .union(observed_by_route.select("route_id"))
+        .distinct()
+    )
 
     return (
         routes.join(scheduled_by_route, on="route_id", how="left")
@@ -253,18 +253,10 @@ def build_service_reliability_gold(
         .select(
             F.lit(service_date).alias("date"),
             F.col("route_id"),
-            F.coalesce(F.col("scheduled_trips"), F.lit(0)).alias(
-                "scheduled_trips"
-            ),
-            F.coalesce(F.col("observed_trips"), F.lit(0)).alias(
-                "observed_trips"
-            ),
-            F.coalesce(F.col("delayed_trips"), F.lit(0)).alias(
-                "delayed_trips"
-            ),
-            F.coalesce(F.col("cancelled_trips"), F.lit(0)).alias(
-                "cancelled_trips"
-            ),
+            F.coalesce(F.col("scheduled_trips"), F.lit(0)).alias("scheduled_trips"),
+            F.coalesce(F.col("observed_trips"), F.lit(0)).alias("observed_trips"),
+            F.coalesce(F.col("delayed_trips"), F.lit(0)).alias("delayed_trips"),
+            F.coalesce(F.col("cancelled_trips"), F.lit(0)).alias("cancelled_trips"),
         )
         .withColumn(
             "reliability_rate",

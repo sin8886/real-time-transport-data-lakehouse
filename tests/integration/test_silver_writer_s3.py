@@ -102,8 +102,7 @@ def test_silver_parquet_s3_round_trip(tmp_path: Path) -> None:
     }
 
     spark = (
-        SparkSession.builder
-        .appName("silver-s3-integration-test")
+        SparkSession.builder.appName("silver-s3-integration-test")
         .master("local[2]")
         .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
@@ -130,13 +129,11 @@ def test_silver_parquet_s3_round_trip(tmp_path: Path) -> None:
 
         for dataset in ("routes", "stops", "trips"):
             expected_prefix = (
-                f"silver/{test_prefix}/{provider}/"
-                f"ingest_date={ingest_date}/{dataset}/"
+                f"silver/{test_prefix}/{provider}/ingest_date={ingest_date}/{dataset}/"
             )
 
             dataset_keys = [
-                key for key in uploaded_keys
-                if key.startswith(expected_prefix)
+                key for key in uploaded_keys if key.startswith(expected_prefix)
             ]
 
             assert dataset_keys, f"No S3 Parquet files uploaded for {dataset}"
@@ -169,8 +166,7 @@ def test_silver_parquet_s3_round_trip(tmp_path: Path) -> None:
                     Bucket=bucket_name,
                     Delete={
                         "Objects": [
-                            {"Key": key}
-                            for key in isolated_storage.uploaded_keys
+                            {"Key": key} for key in isolated_storage.uploaded_keys
                         ],
                         "Quiet": True,
                     },

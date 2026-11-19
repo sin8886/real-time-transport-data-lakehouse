@@ -102,11 +102,7 @@ def write_silver_parquet(
             dataframe = spark.createDataFrame(records, schema=schema)
             dataset_path = base_path / dataset
 
-            (
-                dataframe.write
-                .mode("overwrite")
-                .parquet(str(dataset_path))
-            )
+            (dataframe.write.mode("overwrite").parquet(str(dataset_path)))
             output_paths[dataset] = str(dataset_path)
 
     finally:
@@ -161,10 +157,7 @@ def upload_silver_parquet(
 
         for parquet_file in validated_files[dataset]:
             relative_path = parquet_file.relative_to(dataset_path).as_posix()
-            key = (
-                f"{provider}/ingest_date={ingest_date}/"
-                f"{dataset}/{relative_path}"
-            )
+            key = f"{provider}/ingest_date={ingest_date}/{dataset}/{relative_path}"
 
             uploaded_key = storage.upload_file(
                 str(parquet_file),

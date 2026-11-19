@@ -57,11 +57,7 @@ def provider_static_records(request):
             "trip_headsign": "Central",
             "direction_id": "0",
             "shape_id": "SHAPE100",
-            **(
-                {"trip_short_name": "AT100"}
-                if provider == "at"
-                else {"etm_id": "109"}
-            ),
+            **({"trip_short_name": "AT100"} if provider == "at" else {"etm_id": "109"}),
         }
     ]
 
@@ -79,9 +75,7 @@ def test_provider_projects_to_canonical_static_schema(
     provider_static_records,
 ):
     """Both providers must produce exactly the canonical dimension fields."""
-    silver = build_silver_dimensions(
-        provider_static_records["records"]
-    )
+    silver = build_silver_dimensions(provider_static_records["records"])
 
     for dimension, records in silver.items():
         expected_fields = set(STATIC_DIMENSION_FIELDS[dimension])
@@ -94,9 +88,7 @@ def test_provider_projects_to_canonical_field_types(
     provider_static_records,
 ):
     """Both providers must produce the same Python field types."""
-    silver = build_silver_dimensions(
-        provider_static_records["records"]
-    )
+    silver = build_silver_dimensions(provider_static_records["records"])
 
     for dimension, records in silver.items():
         expected_types = STATIC_DIMENSION_FIELD_TYPES[dimension]
@@ -115,9 +107,7 @@ def test_provider_specific_fields_do_not_leak_into_canonical_output(
     provider_static_records,
 ):
     """Provider-only GTFS fields must not enter canonical Silver records."""
-    silver = build_silver_dimensions(
-        provider_static_records["records"]
-    )
+    silver = build_silver_dimensions(provider_static_records["records"])
 
     for dimension, records in silver.items():
         for record in records:
@@ -190,9 +180,7 @@ def test_shared_entity_identifiers_remain_strings(
     provider_static_records,
 ):
     """Static entity identifiers must retain canonical string types."""
-    silver = build_silver_dimensions(
-        provider_static_records["records"]
-    )
+    silver = build_silver_dimensions(provider_static_records["records"])
 
     for field in SHARED_ENTITY_FIELDS:
         dimension = {
